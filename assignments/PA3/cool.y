@@ -5,7 +5,7 @@
 */
 %{
   #include <iostream>
-  #include "cool-tree.h"
+  #include "cool-tree.h"//目前的理解是，这个cool-tree.h以及tree.h都是由那个.aps文件自动生成的
   #include "stringtab.h"
   #include "utilities.h"
   
@@ -135,10 +135,34 @@
     %type <class_> class
     
     /* You will want to change the following line. */
-    %type <features> dummy_feature_list
+
+    //照葫芦画瓢没问题吧hhh
+        %type <feature> feature
+    %type <features> feature_list
+    %type <formal> formal
+    %type <formals> formal_list   
+    %type <case_> branch
+    %type <cases> branch_list
+    %type <expression> expr
+    %type <expression> while
+    %type <expression> let
+    %type <expressions> expr_list
+    %type <expressions> expr_list_
+
+
+
+
     
     /* Precedence declarations go here. */
-    
+    %right ASSIGN
+    %left NOT
+    %nonassoc LE '<' '='
+    %left '+' '-'
+    %left '*' '/'
+    %left ISVOID
+    %left '~'
+    %left '@'
+    %left '.'
     
     %%
     /* 
@@ -157,18 +181,172 @@
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
-    class	: CLASS TYPEID '{' dummy_feature_list '}' ';'
+    class	: CLASS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,idtable.add_string("Object"),$4,
     stringtable.add_string(curr_filename)); }
-    | CLASS TYPEID INHERITS TYPEID '{' dummy_feature_list '}' ';'
+    | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+    | CLASS error ';' class {$$=$4;}
     ;
     
     /* Feature list may be empty, but no empty features in list. */
-    dummy_feature_list:		/* empty */
-    {  $$ = nil_Features(); }
+  feature_list
+      :		/* empty */
+        { $$ = nil_Features(); }
+      | feature_list feature
+        { $$ = append_Features($1, single_Features($2)); };
+      | feature_list error ';' //看，错误处理！
+        { $$ = $1; }
+
+
+    /* feature; */
+    feature
+      : OBJECTID '(' ')' ':' TYPEID '{' expr '}' ';'
+        { $$ = method($1, nil_Formals(), $5, $7); }
+      | OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}' ';'
+        { $$ = method($1, $3, $6, $8); }
+      | OBJECTID ':' TYPEID ';'
+        { $$ = attr($1, $3, no_expr()); }
+      | OBJECTID ':' TYPEID ASSIGN expr ';'
+        { $$ = attr($1, $3, $5); } 
+
+/* formal */
+    formal
+      : OBJECTID ':' TYPEID
+        { $$ = formal($1, $3); };
     
-    
+    /* [formal [[, formal]]* */
+    formal_list
+      : formal
+        { $$ = single_Formals($1); }
+      | formal_list ',' formal
+        { $$ = append_Formals($1, single_Formals($3)); };
+
+    /* expr [[, expr]]* */
+    expr_list
+      : expr
+        { $$ = single_Expressions($1); }
+      | expr_list ',' expr
+        { $$ = append_Expressions($1, single_Expressions($3)); };
+
+    /* [[expr;]]+ */
+    expr_list_
+      : expr ';'
+        { $$ = single_Expressions($1); }
+      | expr_list_  expr ';'
+        { $$ = append_Expressions($1, single_Expressions($2)); };
+      | expr_list_ error ';' 
+        { $$ = $1; }      
+
+    /* ID : TYPE [ <- expr ] [[, ID : TYPE [ <- expr ]]]* in expr */
+    let
+      : OBJECTID ':' TYPEID IN expr
+        { $$ = let($1, $3, no_expr(), $5); }
+      | OBJECTID ':' TYPEID ASSIGN expr IN expr
+        { $$ = let($1, $3, $5, $7); }
+      | OBJECTID ':' TYPEID ',' let
+        { $$ = let($1, $3, no_expr(), $5); }
+      | OBJECTID ':' TYPEID ASSIGN expr ',' let
+        { $$ = let($1, $3, $5, $7); };
+      | error ',' let
+        { $$ = $3; }
+
+    /* ID : TYPE => expr; */
+    branch
+      : OBJECTID ':' TYPEID DARROW expr ';'
+        { $$ = branch($1, $3, $5); };
+
+    /* [[ID : TYPE => expr;]]+ */
+    branch_list
+      : branch
+        { $$ = single_Cases($1); }
+      | branch_list branch 
+        { $$ = append_Cases($1, single_Cases($2)); };
+
+    /* nonempty expr  */
+    expr
+      // assign
+      : OBJECTID ASSIGN expr
+        { $$ = assign($1, $3); };
+      // expr[@TYPE]:ID( [ expr [[; expr]]* ] )
+      // dispath
+      | expr '.' OBJECTID '(' ')'
+        { $$ = dispatch($1, $3, nil_Expressions()); }
+      | expr '.' OBJECTID '(' expr_list ')'
+        { $$ = dispatch($1, $3, $5); }
+      // static dispatch
+      | expr '@' TYPEID '.' OBJECTID '(' ')'
+        { $$ = static_dispatch($1, $3, $5, nil_Expressions()); }
+      | expr '@' TYPEID '.' OBJECTID '(' expr_list ')'
+        { $$ = static_dispatch($1, $3, $5, $7); };
+      // ID( [ expr [[; expr]]* ] )
+      | OBJECTID '(' ')'
+        { $$ = dispatch(object(idtable.add_string("self")), $1, nil_Expressions()); }
+      | OBJECTID '(' expr_list ')'
+        { $$ = dispatch(object(idtable.add_string("self")), $1, $3); };
+      // if expr then expr else expr fi
+      | IF expr THEN expr ELSE expr FI
+        { $$ = cond($2, $4, $6); };
+      // while expr loop expr pool
+      | WHILE expr LOOP expr POOL
+        { $$ = loop($2, $4); };
+      // { [[expr; ]]+ }
+      | '{' expr_list_ '}'
+        { $$ = block($2); };
+      // let ID : TYPE [ <- expr ] [[; ID : TYPE [ <- expr ]]]* in expr
+      | LET let
+        { $$ = $2; };
+      // case expr of [[ID : TYPE => expr; ]]+ esac
+      | CASE expr OF branch_list ESAC
+        { $$ = typcase($2, $4); };
+      // new TYPE
+      | NEW TYPEID
+        { $$ = new_($2); };
+      // isvoid expr
+      | ISVOID expr
+        { $$ = isvoid($2); };
+      // expr + expr
+      | expr '+' expr
+        { $$ = plus($1, $3); };
+      // expr - expr
+      | expr '-' expr
+        { $$ = sub($1, $3); };
+      // expr * expr
+      | expr '*' expr
+        { $$ = mul($1, $3); };
+      // expr / expr
+      | expr '/' expr
+        { $$ = divide($1, $3); };
+      // ~expr
+      | '~' expr
+        { $$ = neg($2); };
+      // expr < expr
+      | expr '<' expr
+        { $$ = lt($1, $3); };
+      // expr <= expr
+      | expr LE expr
+        { $$ = leq($1, $3); };
+      // expr = expr
+      | expr '=' expr
+        { $$ = eq($1, $3); };
+      // not expr
+      | NOT expr
+        { $$ = comp($2); };
+      // (expr)
+      | '(' expr ')'
+        { $$ = $2; };
+      // ID
+      | OBJECTID
+        { $$ = object($1); };
+      // integer
+      | INT_CONST
+        { $$ = int_const($1); };
+      // string
+      | STR_CONST
+        { $$ = string_const($1); };
+      // true, false
+      | BOOL_CONST
+        { $$ = bool_const($1); };
     /* end of grammar */
     %%
     

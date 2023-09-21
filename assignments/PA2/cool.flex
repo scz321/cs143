@@ -379,7 +379,7 @@ f(?i:alse)                                                      {   cool_yylval.
                                                                     cool_yylval.symbol = idtable.add_string(yytext);
                                                                     return TYPEID;
                                                                 }
-
++++++++
 [a-z][0-9a-zA-Z_]*                                              {   
                                                                     cool_yylval.symbol = idtable.add_string(yytext);
                                                                     return OBJECTID;

@@ -23,24 +23,24 @@ module COOL[] begin
 
   constructor program(classes : Classes) : Program;
   constructor class_(name : Symbol; parent: Symbol; 
-	             features : Features; filename : Symbol): Class_;
+	             features : Features; filename : Symbol): Class_;--这里的filename是指？？
 
   -- Features:
   constructor method(name : Symbol;
-		     formals : Formals;
+		     formals : Formals;  --这个formals具体到cool语言有何含义？参数列表
 		     return_type : Symbol;
 		     expr: Expression) : Feature;
   constructor attr(name, type_decl : Symbol;
-		   init : Expression) : Feature;
+		   init : Expression) : Feature; --难道不是只需要数据类型与变量名称即可吗？为什么还有一个init？哦，应该是初始值
 
   -- Formals
-  constructor formal(name, type_decl: Symbol) : Formal;
+  constructor formal(name, type_decl: Symbol) : Formal; --这里的name为什么没有类型？void？
 
   -- Case
-  constructor branch(name, type_decl: Symbol; expr: Expression): Case;
+  constructor branch(name, type_decl: Symbol; expr: Expression): Case;  --这里的name为什么没有类型？void？
 
   -- Expressions
-  constructor assign(name : Symbol; expr : Expression) : Expression;
+  constructor assign(name : Symbol; expr : Expression) : Expression; --举例说明？？
   constructor static_dispatch(expr: Expression; 
                               type_name : Symbol;                              
                               name : Symbol; 
@@ -49,6 +49,7 @@ module COOL[] begin
 		       name : Symbol;
 		       actual : Expressions) : Expression;
   constructor cond(pred, then_exp, else_exp : Expression): Expression;
+  
   constructor loop(pred, body: Expression) : Expression;
   constructor typcase(expr: Expression; cases: Cases): Expression;
   constructor block(body: Expressions) : Expression;
