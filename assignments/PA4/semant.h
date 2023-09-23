@@ -22,6 +22,7 @@ typedef ClassTable *ClassTableP;
 // methods.
 
 class ClassTable {
+
 private:
   int semant_errors;
   void install_basic_classes();

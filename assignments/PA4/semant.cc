@@ -196,6 +196,13 @@ void ClassTable::install_basic_classes() {
 						      Str, 
 						      no_expr()))),
 	       filename);
+
+    // add
+    add_to_class_table(Object_class);
+    add_to_class_table(IO_class);
+    add_to_class_table(Int_class);
+    add_to_class_table(Bool_class);
+    add_to_class_table(Str_class);
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -215,7 +222,7 @@ void ClassTable::install_basic_classes() {
 
 ostream& ClassTable::semant_error(Class_ c)
 {                                                             
-    return semant_error(c->get_filename(),c);
+    return semant_error(c->get_filename(), c);
 }    
 
 ostream& ClassTable::semant_error(Symbol filename, tree_node *t)
@@ -240,38 +247,12 @@ ostream& ClassTable::semant_error()
 
 
 
-/*   This is the entry point to the semantic checker.
-
-     Your checker should do the following two things:
-
-     1) Check that the program is semantically correct
-     2) Decorate the abstract syntax tree with type information
-        by setting the `type' field in each Expression node.
-        (see `tree.h')
-
-     You are free to first do 1), make sure you catch all semantic
-     errors. Part 2) can be done in a second stage, when you want
-     to build mycoolc.
- */
-void program_class::semant()
-{
-    initialize_constants();
-
-    /* ClassTable constructor may do some semantic analysis */
-    ClassTable *classtable = new ClassTable(classes);
-
-    /* some semantic analysis code may go here */
-
-    if (classtable->errors()) {
-	cerr << "Compilation halted due to static semantic errors." << endl;
-	exit(1);
-    }
-}
 
 
 // start
 // add class to classtable
 void ClassTable::add_to_class_table(Class_ c){
+    //cout<<"当前正在新增，类名："<<c->get_name()<<endl;
     Symbol name = c->get_name();
     Symbol parent = c->get_parent();
     Features features = c->get_features();
@@ -288,7 +269,10 @@ void ClassTable::add_to_class_table(Class_ c){
         semant_error(c) << "Can't be defined multiple times!" << endl;
     }else{
         class_table[name] = c;
+
         inhert_graph[name] = parent;
+        //std::cout<<"当前新增child:"<<name<<"    parent:"<<inhert_graph[name]<<std::endl;
+
     }
 }
 
@@ -507,6 +491,7 @@ void class__class::init(Env env){
     if (name != Object){
         // 先设置父节点
         env.ct->get_class(parent)->init(env);
+        //这种方式可以确保type environment的建立是自顶向下的
     }
 
     // 设置feature
@@ -539,7 +524,10 @@ Feature class__class::get_method(Symbol name) {
 
 // method_class
 void method_class::add_to_env(Env env){
- //对于method的add_to_env,这里应该是一处bug，商代修复
+
+ //-----事实证明，这并不是bug，那么为什么这里啥也不写呢？忘了就去看文档
+
+  
 }
 
 // attr_class
@@ -551,6 +539,8 @@ void attr_class::add_to_env(Env env){
         // 如果scope中属性已定义, 则报错
         env.ct->semant_error(env.cur_class) << "Can't be defined multiple times!" << endl;
     }
+   // env.om->dump();
+
 }
 
 /** type_check **/
@@ -592,6 +582,7 @@ Feature method_class::type_check(Env env){
         if(!env.ct->check_method(cur_class, parent_class, name)){
             env.ct->semant_error(env.cur_class) << "Method " << name << "inherent wrong!" << endl;
         }
+
     }
     // step5
     Symbol true_return_type = expr->type_check(env)->type;
@@ -619,6 +610,8 @@ Feature method_class::type_check(Env env){
     return this;
 }
 
+
+
 /**
  * 1. 进入新的作用域
  * 2. 添加当前类到环境
@@ -636,7 +629,9 @@ Feature attr_class::type_check(Env env){
     // step3
     Symbol true_return_type = init->type_check(env)->type;
     // 3.1
+
     if (name == self){
+        //std::cout<<"当前已经检测到name == self"<<std::endl;
         env.ct->semant_error(env.cur_class->get_filename(), this) << "Attr shouldn't be self!" << endl;
     }
     // 3.2
@@ -657,6 +652,8 @@ Feature attr_class::type_check(Env env){
 
     return this;
 }
+
+
 
 /**
  * 1. 判断参数是否存在
@@ -941,7 +938,6 @@ Expression let_class::type_check(Env env){
                 env.om->exitscope();
             }
         }
-
         return this;
     }
 }
@@ -1148,3 +1144,51 @@ Expression object_class::type_check(Env env){
     return this;
 }
 
+
+
+/*   This is the entry point to the semantic checker.
+
+     Your checker should do the following two things:
+
+     1) Check that the program is semantically correct
+     2) Decorate the abstract syntax tree with type information
+        by setting the `type' field in each Expression node.
+        (see `tree.h')
+
+     You are free to first do 1), make sure you catch all semantic
+     errors. Part 2) can be done in a second stage, when you want
+     to build mycoolc.
+ */
+void program_class::semant()
+{
+    initialize_constants();
+    //std::cout<<"=========test======="<<std::endl;
+
+
+
+    /* ClassTable constructor may do some semantic analysis */
+    // Classes : classes
+    // first pass
+    ClassTable *classtable = new ClassTable(classes);
+
+
+    /* some semantic analysis code may go here */
+    // second pass
+    if ((!classtable->errors()) && (classtable->is_valid())){
+        Env env(classtable);//type environment初始化
+        for (int i = classes->first(); classes->more(i); i = classes->next(i)){
+            env.om->enterscope();
+            env.cur_class = classes->nth(i);
+            classes->nth(i)->init(env);
+            classes->nth(i)->type_check(env);
+            env.om->exitscope();
+        }
+    }
+
+
+
+    if (classtable->errors()) {
+        cerr << "Compilation halted due to static semantic errors." << endl;
+        exit(1);
+    }
+}

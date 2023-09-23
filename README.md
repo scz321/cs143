@@ -1,4 +1,4 @@
-## 前言
+前言
 
 本笔记采取问题导向式记录：只记录问题，不记录答案（除非是gpt无法给出清晰解析，并且查找课件也无法得到准确答案，并且我当时也难以理解的问题
 
@@ -504,9 +504,9 @@ typedef union YYSTYPE
 >
 > ```
 > coolCopy codeclass Main inherits IO {
->     main() : IO {
->         out_string("Hello, World!")
->     };
+>  main() : IO {
+>      out_string("Hello, World!")
+>  };
 > };
 > ```
 >
@@ -763,9 +763,9 @@ parser vs lexer：
 >
 > ```
 > scssCopy codeExpr   -> id
->  | num
->  | Expr + Expr
->  | ( Expr )
+> | num
+> | Expr + Expr
+> | ( Expr )
 > 
 > id     -> [a-zA-Z_][a-zA-Z0-9_]*
 > num    -> [0-9]+
@@ -1109,7 +1109,9 @@ NFA构建算法：
   > ![image-20230917133710082](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230917133710082.png)
 
 - reduction：和derivation相反的操作
+
 - shift move& reduce move
+
   - 使用stack很合适，因为我们永远只可能对vertical bar左边字符的末端进行reduce
   - shift-reduce conflict：相对来说容易解决
   - reduce-reduce conflict：难以解决，一般是严重的语法问题
@@ -1670,8 +1672,11 @@ flex的作用是一个一个char的读取，按照正则表达式的规则识别
   > ![image-20230922164407243](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922164407243.png)
 
 - 对于这次lab来说，3，4点可以一起实现，核心在于建立type的的继承图（同时这个继承图也会在type checking，type inference中起到作用，所以优先进行）
+
 - 剩下的要求主要就是type environment、type inference，目前的想法是：首先自底向上进行inference&checking，符合inference的假设条件的就对结果进行
+
 - 对于type checking，type checking的核心在于对与不同type的对象之间的==运算符==的处理：比如，3+“2”在cool语言中是不合理的（因此也不会有相应的、相匹配的inference rule存在，换言之，在inference的过程中我们会推测根据3和“2”的字面值推导出它们分别的类型==，但是，并不会计算这个表达式的类型，因为不存在与之对应的inference rule==，而这应当就是type checking发挥作用的地方：呃呃，好像逻辑很简单：只要发现没有相关的rule，就报错，并且进行相关的错误处理（使得编译继续下去），这就是type checking，有rule，就进行inference）
+
 - 在完成了前述的自底向上的过程后，AST的每一个node都会有与之对应的type，此时，再自顶向下构建每一个node的type environment，因此推测type environment的实现应该是为每一个node新增一个属性（本实验中应该是3个，变量、method、selftype各一个）
 
 ### scope
@@ -1812,18 +1817,131 @@ flex的作用是一个一个char的读取，按照正则表达式的规则识别
 
 ## PA4实现
 
-### 源码解析
+### 需求分析
 
-###### symtbl.h
+最核心的地方在于，要对Env的构建、type_check的执行、type_inference的实现有一个清晰的认识，在此基础上，能够回答下列问题。
 
-- 主要是要读懂两个数据结构：SymtabEntry和SymbolTable
+> ![image-20230922164407243](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922164407243.png)
+
+下面，首先跟着main函数的流程，一步步讲述Env的构建、type_check的执行、type_inference的实现：
+
+### main函数整体分析
+
+main函数位于semant-phase.cc中：
+
+```cpp
+#include <stdio.h>
+#include "cool-tree.h"
+
+extern Program ast_root;      // root of the abstract syntax tree
+FILE *ast_file = stdin;       // we read the AST from standard input
+extern int ast_yyparse(void); // entry point to the AST parser
+
+int cool_yydebug;     // not used, but needed to link with handle_flags
+char *curr_filename;
+
+void handle_flags(int argc, char *argv[]);
+
+int main(int argc, char *argv[]) {
+  handle_flags(argc,argv);//处理命令行的参数列表
+  ast_yyparse();//这里应该是调用词法分析+语法分析，但是我并没有找到与之相关的函数定义
+  ast_root->semant();
+  ast_root->dump_with_types(cout,0);
+}
+
+```
+
+对于本lab。主要从semant函数的执行开始看：
+
+```cpp
+void program_class::semant()
+{
+    initialize_constants();
+    //std::cout<<"=========test======="<<std::endl;
+
+
+
+    /* ClassTable constructor may do some semantic analysis */
+    // Classes : classes
+    // first pass
+    ClassTable *classtable = new ClassTable(classes);
+
+
+    /* some semantic analysis code may go here */
+    // second pass
+    if ((!classtable->errors()) && (classtable->is_valid())){
+        Env env(classtable);//type environment初始化
+        for (int i = classes->first(); classes->more(i); i = classes->next(i)){
+            env.om->enterscope();
+            env.cur_class = classes->nth(i);
+            classes->nth(i)->init(env);
+            classes->nth(i)->type_check(env);
+            env.om->exitscope();
+        }
+    }
+
+
+
+    if (classtable->errors()) {
+        cerr << "Compilation halted due to static semantic errors." << endl;
+        exit(1);
+    }
+}
+```
+
+在semant函数中，我们首先使用当前program所有classes建立ClassTable，ClassTable的主要作用在于：
+
+- 内置一个class_table属性，记录当前的symbol(也即identifier，具体到这里，是类型名称）和Class_（也即所谓的type）之间的映射关系
+- 内置一个inhert_graph属性，记录symbol和symbol之间的父子关系
+
+然后是一个遍历：遍历该program的所有class，对于每一个class，都是先执行init(env)，再执行type_check(env)。
+
+下面主要分析这两个函数的执行过程：
+
+- 先猜测：init：自上而下地遍历AST，完成Env的构建。type_check(env)：自下而上地遍历AST，逐步进行type_check，这里我猜测它同时也实现了type_inference。
+
+- 不对，有问题。==别忘了为什么要进行type inference，是因为type check时有的object的类型为止，这意味着，它不应该和type check同步进行，而应该先进行。==
+
+### Env相关数据结构详解
+
+下面首先分析init：
+
+在分析init之前，首先要认清Env的数据结构，它和形式语言描述的略有不同：
+
+```cpp
+class ClassTable;
+
+// 环境信息, 对应类型环境中的(O, M, C)
+class Env {
+public:
+   // 符号表, 对应O, M  ？？这里为什么O和M共同使用一个符号表？？
+   SymbolTable<Symbol, Symbol> *om;
+   // 类表, 补充信息
+   ClassTable *ct;
+   // 环境的当前类, 对应C
+   Class_ cur_class;
+   Env() {
+      om = new SymbolTable<Symbol, Symbol>();
+      ct = NULL;
+      cur_class = NULL;
+   }
+
+   Env(ClassTable *ct) {
+      om = new SymbolTable<Symbol, Symbol>();
+      this->ct = ct;
+      cur_class = NULL;
+   }
+};
+```
+
+这里涉及到一个SymbolTable，其定义在symtbl.h中，
 
 > 这段代码实现了一个符号表(Symbol Table)的数据结构。符号表是一个关键的数据结构，常用于编译器、解释器以及其他需要管理名称与关联数据之间关系的应用中。
 >
 > 1. **符号表条目类**(`SymtabEntry`)：
 >
->    ```
->    cppCopy codetemplate <class SYM, class DAT>
+>    ```cpp
+>    template <class SYM, class DAT>
 >    class SymtabEntry {
 >    private:
 >      SYM id;        // the key field
@@ -1839,11 +1957,17 @@ flex的作用是一个一个char的读取，按照正则表达式的规则识别
 >
 > 2. **符号表类**(`SymbolTable`)：
 >
->    ```
->    cppCopy codetemplate <class SYM, class DAT>
+>    ```cpp
+>    template <class SYM, class DAT>
 >    class SymbolTable
 >    {
->       ...
+>       typedef SymtabEntry<SYM,DAT> ScopeEntry;
+>       typedef List<ScopeEntry> Scope;
+>       typedef List<Scope> ScopeList;
+>    private:
+>       ScopeList  *tbl;
+>    public:
+>        //一些其他方法
 >    };
 >    ```
 >
@@ -1856,7 +1980,282 @@ flex的作用是一个一个char的读取，按照正则表达式的规则识别
 >    - `probe()`: 仅在顶层作用域中查找一个符号。
 >    - `dump()`: 打印符号表的内容。
 
+这里对最里层的ScopeEntry要认清：它建立的是object的symbol与object的type之间的联系，其使用示例如下：
 
+![image-20230923212149964](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923212149964.png)
+
+对于Scopelist，需要注意新增的Scope永远是增加到它的"头部"，这样就能理解exitscope的逻辑：
+
+```cpp
+void exitscope()
+   {
+       // It is an error to exit a scope that doesn't exist.
+       if (tbl == NULL) {
+	   fatal_error("exitscope: Can't remove scope from an empty symbol table.");
+       }
+       tbl = tbl->tl();
+   }
+```
+
+
+
+这里有一个小疑问：它并没有使用一种嵌套的结构，这是否意味着。外层的scope中的object的symbol在内层的scope中无法被识别？
+
+如何找到答案？去看lookup的函数实现即可！事实证明，这种看起来使用链表实现的scope机制不但没有问题，反而是以一种高效的方式实现了scope的需求。
+
+```cpp
+ DAT *lookup(SYM s)
+   {
+       for (ScopeList *i = tbl; i != NULL; i = i->tl())
+       {
+           for (Scope *j = i->hd(); j != NULL; j = j->tl())
+           {
+               if (s == j->hd()->get_id())
+               {
+                   return (j->hd()->get_info());
+               }
+           }
+       }
+       return NULL;
+   }
+```
+
+
+
+Env中的另外两个属性都和理论相符，不难理解
+
+
+
+-------------------------分割线，读到这里，应该可以理解Env，尤其是scope的实现机制了。----------------------------------------------
+
+### init详解
+
+下面才开始正题：init的实现：
+
+```cpp
+// class__class, 初始化, 递归处理, 先设置父节点
+void class__class::init(Env env){
+    if (name != Object){
+        // 先设置父节点
+        env.ct->get_class(parent)->init(env);
+        //这种方式可以确保type environment的建立是自顶向下的
+    }
+
+    // 设置feature
+    for (int i = features->first(); features->more(i); i = features->next(i)){
+        features->nth(i)->add_to_env(env);
+    }
+}
+```
+
+从代码可以看出，由于递归的存在，决定了我们必然会自顶向下进行构建，这也和理论是一致的。
+
+
+
+那么，我们为什么需在init阶段对features执行add_to_env的操作，而不是在type_checking阶段呢？（按理说，env应该是一个随着type_cheking的scope状态不同而动态变化的一个数据结构才对？）
+
+==原因就在于，我们要求类中的属性在定义之前就可以被使用==，但是method则不具有这种特殊性，这就解释了为什么我们对attr_class::add_to_env给出了具体的实现，但是对于method_class::add_to_env并没有进行实现，因为它本就不应该被实现！！！！
+
+（当时这个点困扰了俺好久hhh，谁让你不熟悉语法的。。。）
+
+-----------------------------分割线，到这里应该可以完全理解init部分执行的操作及其支持的cool的语言特性了---------------------------------
+
+### type_check&type_inference
+
+下面，是一个更重要的疑惑：程序在执行完init之后就执行type_check，那么type inference到底是在什么时候发生的？
+
+还是说，在实际设计中，压根就不需要type inference？？
+
+至少从程序运行的最终结果来看，我们是知道所有的type的，这是怎么发生的呢？
+
+> ![image-20230923221234995](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923221234995.png)
+
+
+
+背后的原因让人暖心：原因就在那一个个type_check中。首先要明白：type_check的调用是自上而下调用的，但是==type_check函数主体内容的执行是自下而上进行的==，例如：
+
+> Feature method_class::==type_check==(Env env){
+>
+>   // step1
+>
+>   env.om->enterscope();
+>
+>   // step2
+>
+>   Symbol cur_class = env.cur_class->get_name();
+>
+>   env.om->addid(self, &cur_class);
+>
+>   // step3
+>
+>   for (int i = formals->first(); formals->more(i); i = formals->next(i)){
+>
+> ​    formals->nth(i)->==type_check==(env);
+>
+>   }
+>
+>   // step4
+>
+>   // 首先获得包含当前method的父类, 然后查看是否和父类method匹配
+>
+>   // 获得包含method的父类
+>
+>   Symbol parent_class = env.ct->get_parent(cur_class, name);
+>
+>   if (parent_class != NULL){
+>
+> ​    // 判断方法是否继承正确
+>
+> ​    if(!env.ct->check_method(cur_class, parent_class, name)){
+>
+> ​      env.ct->semant_error(env.cur_class) << "Method " << name << "inherent wrong!" << endl;
+>
+> ​    }
+>
+> 
+>
+>   }
+>
+>   // step5
+>
+>   Symbol true_return_type = expr->==type_check==(env)->type;
+>
+>   if (return_type == SELF_TYPE){
+>
+> ​    // 5.1
+>
+> ​    if (true_return_type != SELF_TYPE){
+>
+> ​      env.ct->semant_error(env.cur_class) << "True return type should be SELF_TYPE!" << endl;
+>
+> ​    }
+>
+>   }else if (!env.ct->is_class_exit(return_type)){
+>
+> ​    // 5.2
+>
+> ​    env.ct->semant_error(env.cur_class) << "Return type doesn't exist!" << endl;
+>
+>   }else{
+>
+> ​    // 5.3
+>
+> ​    if (true_return_type == SELF_TYPE){
+>
+> ​      true_return_type = env.cur_class->get_name();
+>
+> ​    }
+>
+> ​    if (!env.ct->is_sub_class(true_return_type, return_type)){
+>
+> ​      env.ct->semant_error(env.cur_class->get_filename(), this) << "True return type isn't subclass of return type!" << endl;
+>
+> ​    }
+>
+>   }
+>
+>   
+>
+>   // step1
+>
+>   env.om->exitscope();
+>
+> 
+>
+>   return this;
+>
+> }
+
+而这种自下而上的执行过程就刚好支持了我们的type inference。比如，在上面的method的check中有如下代码：
+
+```cpp
+Symbol true_return_type = expr->type_check(env)->type;
+```
+
+==这段代码除了展现了check的类似于递归的行为之外，还隐藏着一个重要信息：type_check的返回值也是一个type！那么，这个type是什么type呢？没错！在这里，这正是我们的expr的type，我们正是使用type check的返回值作为type inference的结果！！！！==
+
+Ok，误会解除，我只能说，你是懂type_inference的。
+
+下面就拿这个method举例进行说明。首先，我们需要有番外中的知识，这样才能继续讨论。
+
+--------------------------------------------番外分割线-------------------------------------------------------
+
+==为什么method_class中的expr的类型是Expression而不是Expressoins？难道说一个函数体中只能有一个表达式？==
+
+原因如下：
+
+>在 COOL 中，方法体中的连续表达式实际上被隐式地封装在一个块 `{ ... }` 中。当你写：
+>
+>```
+>foo() : Int {
+>    x <- 5;
+>    y <- 10;
+>    x + y
+>};
+>```
+>
+>即使你没有明确地使用 `{ ... }`，这个方法体实际上可以被视为一个块，其中包含三个连续的表达式。因此，整个方法体实际上是一个复合 `Expression`，这个复合表达式内部包含其他子表达式。
+>
+>这样的设计简化了抽象语法树 (AST) 的结构，因为方法体可以始终被视为一个单一的 `Expression`，无论其中包含多少个连续的表达式。
+
+---------------------------------------------番外结束，正片继续------------------------------------
+
+因此，我们首先需要讨论block_class的type_check的返回值的处理逻辑。(事实上，正确的做法应当是先去找手册上面的形式化语言的描述。)
+
+```cpp
+/**
+ * block class
+ * [[expr;]]+
+ * body
+ **/
+Expression block_class::type_check(Env env){
+    Symbol s = NULL;
+    for (int i = body->first(); body->more(i); i = body->next(i)){
+        s = body->nth(i)->type_check(env)->type;
+    }
+    type = s;
+
+    return this;
+}
+```
+
+从它的定义可以看出，它的返回类型是它的body中的最后一个表达式的返回类型。那么，这个表达式的类型会是什么呢？没错，对于函数体来说，那当然就是return xxx;
+
+妙啊，太妙了。、
+
+但是对于cool来说不是如此，但是本质是一样的，知识cool不支持return关键字而已：
+
+> 在cool语言的语法中，函数的返回是不是也使用return关键字？
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 不，COOL (Classroom Object-Oriented Language) 不使用 `return` 关键字来返回函数或方法的值。在 COOL 中，方法的返回值是方法体中的最后一个表达式的值。
+>
+> 例如，考虑以下的方法定义：
+>
+> ```
+> coolCopy codefoo() : Int {
+>     x <- 5;
+>     y <- 10;
+>     x + y
+> }
+> ```
+>
+> 在这个方法中，`x + y` 是方法体中的最后一个表达式，因此它的值（即 15）将被作为 `foo` 方法的返回值。
+>
+> 如果你想提前从方法中返回，你需要重新组织你的代码，例如使用条件表达式或其他控制流结构来确保你想要的返回值是方法体中的最后一个表达式。
+
+
+
+
+
+### 一些番外
+
+---------------------番外篇：一些杂记------------------------------------------------------------------------------------
 
 ###### semant.cc
 
@@ -1939,9 +2338,9 @@ static void initialize_constants(void)
 
 ###### classTable的合理性检验
 
-从这里可以看出，我们为什么在定义inhert_graph时要把第一项设置为child，第二项设置为parent了。（反过来就不行）
+- 为什么在定义inhert_graph时要把第一项设置为child，第二项设置为parent了。（反过来就不行）
 
-因为两者是多对一的关系
+因为两者是多对一的关系。从下面的代码实现中我们可以发现，两者如果颠倒顺序，那么预期的功能将无法正常实现。
 
 ```cpp
 /**
@@ -1987,13 +2386,7 @@ bool ClassTable::is_valid(){
 
 ```
 
-###### 问题记录
-
-![image-20230922191045770](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922191045770.png)
-
-![image-20230922235236462](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922235236462.png)
-
-
+- 
 
 ```
 Feature attr_class::type_check(Env env){
@@ -2077,8 +2470,8 @@ Feature attr_class::type_check(Env env){
 >
 > ```
 > coolCopy codeclass A {
->     foo : Int;
->     foo() : Int { ... };
+>  foo : Int;
+>  foo() : Int { ... };
 > };
 > ```
 >
@@ -2090,39 +2483,13 @@ Feature attr_class::type_check(Env env){
 >
 > 这里也许可以作为一个课程设计可以优化的点
 
-==记住symboltable实际上是一个scopelist，这一点非常之重要==
-
-一些重要函数
-
-```
-// class__class, 初始化, 递归处理, 先设置父节点
-void class__class::init(Env env){
-    if (name != Object){
-        // 先设置父节点
-        env.ct->get_class(parent)->init(env);
-    }
-
-    // 设置feature
-    for (int i = features->first(); features->more(i); i = features->next(i)){
-        features->nth(i)->add_to_env(env);
-    }
-}
-
-// method_class
-void method_class::add_to_env(Env env){
- //对于method的add_to_env,这里应该是一处bug，商代修复
-}
-
-
-```
-
-![image-20230923110226245](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923110226245.png)
 
 
 
 
 
-评价为细节拉满
+
+- 评价为细节拉满：
 
 
 
@@ -2131,3 +2498,15 @@ void method_class::add_to_env(Env env){
 如果方法的返回类型是`SELF_TYPE`，则返回值的实际类型应当是调用该方法的对象的类型。这就是为什么`type`被赋值为`t0`的原因。`t0`在前面的代码中被确定为`expr`的类型。
 
 以Cool（Classroom Object Oriented Language）为例，它有一个特殊的类型`SELF_TYPE`，表示调用者对象的实际类型。例如，在一个类`A`中，如果有一个方法的返回类型是`SELF_TYPE`，那么当这个方法在一个`A`的实例上被调用时，它返回的类型就是`A`。
+
+
+
+
+
+- 有的地方报错才是正常的！因为测试的cool程序本身有语法问题！
+
+----------------------------番外结束，PA4结束，完结撒花，呜呼~~----------------------------------------------------
+
+### 好好好
+
+![image-20230923231642057](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923231642057.png)

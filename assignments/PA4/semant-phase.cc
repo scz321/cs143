@@ -11,8 +11,8 @@ char *curr_filename;
 void handle_flags(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
-  handle_flags(argc,argv);
-  ast_yyparse();
+  handle_flags(argc,argv);//处理命令行的参数列表
+  ast_yyparse();//这里应该是调用词法分析+语法分析，但是我并没有找到与之相关的函数定义
   ast_root->semant();
   ast_root->dump_with_types(cout,0);
 }

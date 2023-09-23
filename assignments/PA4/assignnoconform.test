@@ -1,0 +1,15 @@
+class Main {
+
+
+
+
+
+    a : A;
+    --a : B;
+    b : B;
+    main() : Object { a <- new B };
+    main() : Object { a <- new B };
+};
+
+class A {};
+class B inherits A {};

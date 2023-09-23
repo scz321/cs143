@@ -126,14 +126,17 @@ public:
    // it returns the associated information field, if not it returns
    // NULL.
 
-   DAT * lookup(SYM s)
+   DAT *lookup(SYM s)
    {
-       for(ScopeList *i = tbl; i != NULL; i=i->tl()) {
-	   for( Scope *j = i->hd(); j != NULL; j = j->tl()) {
-	       if (s == j->hd()->get_id()) {
-		   return (j->hd()->get_info());
-	       }
-	   }
+       for (ScopeList *i = tbl; i != NULL; i = i->tl())
+       {
+           for (Scope *j = i->hd(); j != NULL; j = j->tl())
+           {
+               if (s == j->hd()->get_id())
+               {
+                   return (j->hd()->get_info());
+               }
+           }
        }
        return NULL;
    }
