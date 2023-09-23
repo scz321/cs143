@@ -15,7 +15,7 @@ HGEN=
 LIBS= lexer parser cgen
 CFIL= semant.cc ${CSRC} ${CGEN}
 LSRC= Makefile
-OBJS= ${CFIL:.cc=.o}
+OBJS= ${CFIL:.cc=.o}#变量替换操作
 OUTPUT= good.output bad.output
 
 

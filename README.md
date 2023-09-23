@@ -1,6 +1,10 @@
+## 前言
 
+本笔记采取问题导向式记录：只记录问题，不记录答案（除非是gpt无法给出清晰解析，并且查找课件也无法得到准确答案，并且我当时也难以理解的问题
 
 ## preparation
+
+- 上传之后图片无法正常显示，想看图片可以看同一级目录下的文件：record.pdf
 
 #### 评分
 
@@ -24,8 +28,6 @@
    CODE
    perl pa1-grading.pl
    ```
-
-
 
 #### 报错处理
 
@@ -1241,6 +1243,8 @@ NFA构建算法：
 
 ###### 好好好
 
+![image-20230921165703908](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921165703908.png)
+
 ![image-20230921001732278](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921001732278.png)
 
 ###### 关于cool-tree.aps与tree.h、cool-tree.h之间的关系的理解
@@ -1383,8 +1387,747 @@ flex的作用是一个一个char的读取，按照正则表达式的规则识别
 
 
 
-不同之处在于，bison在每次识别成功之后，都会对AST进行一步构建。tree.h和cool-tree.h的头文件就是为我们提供与之相关的所有数据类型以及接口函数（主要展示一些构造函数）例如：
+不同之处在于，bison在每次识别成功之后，都会对AST进行一步构建。tree.h和cool-tree.h的头文件就是为我们提供与之相关的所有数据类型以及接口函数（主要展示一些构造函数）对于下面的例子，就调用了nil_Features()和append_Features接口函数。
 
 ```
+ /* Feature list may be empty, but no empty features in list. */
+  feature_list
+      :		/* empty */
+        { $$ = nil_Features(); }
+      | feature_list feature
+        { $$ = append_Features($1, single_Features($2)); };
+      | feature_list error ';' //看，错误处理！
+        { $$ = $1; }
 ```
 
+> 所以说，tree.h和cool-tree.h的编写对于语法分析来说是很关键的一个部分。
+
+似乎这两个关于AST的生成其实不是靠人写的，而是借助那个cool-tree.aps自动化地生成了所有与之相关的cpp代码？
+
+> 您的总结大部分是正确的，但有几点需要更详细地说明或微调。
+>
+> 1. **flex 和 bison 的角色**:
+>    - 正如您所说，`flex` 的作用确实是按字符读取输入并根据正则表达式的规则识别记号（token）。这个过程称为词法分析。
+>    - `bison` 则按照给定的上下文无关文法的规则，一个接一个地读取记号并识别更高层次的结构，如表达式、语句等。这个过程称为语法分析。
+> 2. **文法的类型**:
+>    - `bison` ==使用的是上下文无关文法，而不是正则文法。这意味着它可以描述比正则表达式更复杂的语言。而正则文法（由正则表达式描述）只是上下文无关文法的子集。==
+> 3. **NFA/DFA**:
+>    - 您是对的，`flex` 的内部机制确实利用了 NFA/DFA 来实现正则表达式的匹配。但 `bison` 则使用了不同的算法（如 LR(1)、LALR(1) 等）来实现上下文无关文法的解析。
+> 4. **构建抽象语法树**:
+>    - 您正确地指出，`bison` 的规则中的动作通常用于构建抽象语法树（AST）。`tree.h` 和 `cool-tree.h` 确实提供了相关的数据类型和接口函数。
+> 5. **自动化生成**:
+>    - 您也是对的，通常 `tree.h` 和 `cool-tree.h` 中的代码会由一些工具自动生成，如您提到的 `cool-tree.aps`。这种自动化生成可以确保与文法规则的一致性，并简化了添加新规则或修改现有规则时的工作。
+>
+> 综上所述，您的总结很准确，只是需要注意 `bison` 使用的是上下文无关文法，而不是正则文法。而且，`bison` 的解析算法与 `flex` 使用的 NFA/DFA 有所不同。
+
+###### 各种文法的对比
+
+- 好吧，课本还是有东西的。确实听听课还是有价值的,高珍老师的ppt要比gpt讲的清晰、严谨很多
+
+> - <img src="C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921144553305.png" alt="image-20230921144553305" style="zoom: 67%;" />
+>
+> - <img src="C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921144627351.png" alt="image-20230921144627351" style="zoom: 67%;" />
+>
+> - <img src="C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921144643980.png" alt="image-20230921144643980" style="zoom: 67%;" />
+>
+> - <img src="C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921144752838.png" alt="image-20230921144752838" style="zoom: 67%;" />
+>
+>   这里的“下推自动机”：可以简单的理解为： 一个简单的有限自动机==加上一个栈结构==即可
+>
+> - <img src="C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921145051854.png" alt="image-20230921145051854" style="zoom:67%;" />
+>
+> 
+
+> 请系统化地解释正则文法和上下文无关文法之间的关系，对所有文法的分类和包含关系进行分析
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 文法的分类通常是基于其产生式（production rules）的复杂性。下面是常见的文法分类及其关系：
+>
+> 1. **正则文法（Regular Grammars）**:
+>    - **描述能力**：可以描述所有正则语言。正则语言是最简单的形式语言类别。
+>    - **应用场景**：正则文法主要用于词法分析和简单的文本模式匹配。
+>    - **产生式示例**：A -> aB, A -> a
+>    - **实现机制**：可以由确定性有限自动机（DFA）或非确定性有限自动机（NFA）来识别。
+>    - **常用工具**：正则表达式。
+> 2. **上下文无关文法（Context-Free Grammars, CFG）**:
+>    - **描述能力**：比正则文法的描述能力强，但不能描述所有的形式语言。例如，它不能描述所有需要平衡括号的语言。
+>    - **应用场景**：上下文无关文法常用于编程语言的语法分析阶段。
+>    - **产生式示例**：A -> aBb, B -> b
+>    - **实现机制**：可以由推导自动机或LR解析器来识别。
+> 3. **上下文相关文法（Context-Sensitive Grammars）**:
+>    - **描述能力**：比上下文无关文法的描述能力强。
+>    - **应用场景**：上下文相关文法在实际编译器设计中使用较少，但它们可以描述某些在CFG中不可能描述的语言。
+>    - **产生式示例**：aAb -> aBb (只有在A前有a时，A才可以转换为B)
+>    - **实现机制**：由线性有界非确定性图灵机来识别。
+> 4. **递归可枚举文法（Recursively Enumerable Grammars）**:
+>    - **描述能力**：这是描述能力最强的文法类型，可以描述任何由图灵机可识别的语言。
+>    - **应用场景**：由于其复杂性，在实际编译器设计中很少使用。
+>    - **实现机制**：由图灵机来识别。
+>
+> **关系与包含性**:
+>
+> 文法的描述能力有一个清晰的包含关系：正则文法是上下文无关文法的子集，上下文无关文法是上下文相关文法的子集，而上下文相关文法是递归可枚举文法的子集。或更形象地说：
+>
+> ```
+> 正则文法 ⊆ 上下文无关文法 ⊆ 上下文相关文法 ⊆ 递归可枚举文法
+> ```
+>
+> 简而言之，当我们从正则文法向递归可枚举文法移动时，文法的描述能力增加，但文法的处理和解析变得更加复杂。
+
+
+
+正则文法vsCFG
+
+> 结合具体实例说明上下文无关文法和正则文法的区别？在我看来，它们形式上是一样的，只是具体的文法内容不同？
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 上下文无关文法（CFG）和正则文法（RG）的确都是用于描述形式语言的，但它们的能力和适用场合是有区别的。首先，让我们通过具体的实例来理解这两者的不同。
+>
+> ### **正则文法（Regular Grammar）**:
+>
+> - 只能使用右线性（右递归）或左线性（左递归）的产生式。
+> - 通常用于描述可以通过有限状态机（FSM）进行识别的语言。
+>
+> **示例**:
+>
+> 描述所有由零或多个 `a` 组成的字符串的语法：
+>
+> ```
+> rustCopy code
+> S -> aS | ε
+> ```
+>
+> ### **上下文无关文法（Context-Free Grammar）**:
+>
+> - 可以描述更复杂的结构，如嵌套结构。
+> - 通常用于描述可以通过推导自动机（如LL或LR解析器）识别的语言。
+>
+> **示例**:
+>
+> 描述所有正确配对的括号字符串的语法：
+>
+> ```
+> rustCopy code
+> S -> (S) | SS | ε
+> ```
+>
+> ### **对比和说明**:
+>
+> 1. **描述能力**:
+>    - RG 可以描述所有正则语言，而 CFG 可以描述更多，包括一些非正则语言。
+>    - 例如，上述的配对括号语言是非正则的，因此不能用正则文法（或正则表达式）描述，但可以用上下文无关文法描述。
+> 2. **形式**:
+>    - 尽管它们的形式看起来相似，但 CFG 允许更复杂的产生式。
+>    - 在 RG 中，每个产生式的右侧要么是非终端符号后跟终端符号，要么是终端符号后跟非终端符号，或只有终端符号。而 CFG 则没有这种限制。
+> 3. **解析方法**:
+>    - RG 可以使用有限状态机（FSM）来解析，而 CFG 则需要更复杂的解析技术，如递归下降解析或LR解析。
+> 4. **应用场景**:
+>    - RG 通常用于词法分析阶段，例如在编译器前端将源代码分解为标记。
+>    - CFG 用于语法分析阶段，例如在编译器前端建立抽象语法树。
+>
+> 简而言之，上下文无关文法和正则文法在形式上可能看起来类似，但它们的描述能力和应用场景有很大的不同。CFG 可以描述 RG 无法捕获的某些复杂结构。
+>
+> 
+>
+> 所以说，它们形式上是一样的，只是具体的文法内容不同。我想知道具体的不同之处在哪，它们分别对于文法的书写有何区别
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 对，您的理解是对的：正则文法（RG）和上下文无关文法（CFG）确实在形式上都使用产生式，但是它们的产生式有一些固有的约束和特点，这些约束和特点决定了它们描述语言的能力。
+>
+> ### **正则文法（RG）**:
+>
+> - 右线性（或右递归）
+>
+>   ：每个产生式的右侧由一个终端符号和一个非终端符号（或无）组成。
+>
+>   ```
+>   cssCopy code
+>   A -> aB | a
+>   ```
+>
+> - 左线性（或左递归）
+>
+>   ：每个产生式的右侧由一个非终端符号和一个终端符号（或无）组成。
+>
+>   ```
+>   cssCopy code
+>   A -> Ba | a
+>   ```
+>
+> - 正则文法不允许描述中间结构，例如嵌套结构。
+>
+> ### **上下文无关文法（CFG）**:
+>
+> - 没有上述正则文法中的那些限制。每个产生式的右侧可以是任意组合的终端符号和非终端符号。
+>
+> - 可以描述复杂的中间结构，例如嵌套结构。
+>
+>   ```
+>   rustCopy code
+>   S -> aSb | ε
+>   ```
+>
+>   这描述了形如 
+>
+>   ```
+>   aabb
+>   ```
+>
+>   、
+>
+>   ```
+>   aaabbb
+>   ```
+>
+>    等具有平衡的 
+>
+>   ```
+>   a
+>   ```
+>
+>    和 
+>
+>   ```
+>   b
+>   ```
+>
+>    的语言。
+>
+> ### **不同之处**:
+>
+> 1. **产生式的形式**：
+>    - 正则文法的产生式具有特定的形式：要么右递归，要么左递归。CFG 没有这种形式限制。
+> 2. **描述能力**：
+>    - CFG 能够描述一些 RG 无法描述的语言，例如需要平衡括号或其他嵌套结构的语言。
+> 3. **嵌套结构**：
+>    - RG 不能描述任何形式的嵌套或递归结构，而 CFG 可以。
+>
+> ### **结论**:
+>
+> 尽管 RG 和 CFG 在形式上都使用产生式，但它们在描述能力上有很大的不同，这主要是由于它们对产生式形式的不同约束所决定的。CFG 由于其更大的灵活性，通常用于描述编程语言的语法，而 RG 由于其简单性，通常用于描述更简单的模式，如正则表达式中使用的模式。
+
+###### CFG 和 LL（1） LR LALR之间的关系
+
+> LL(1)文法，LR文法，都是上下文无关文法的子集，都是CFG的在不同约定下的，便于解析的写法，对吗？
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 是的，您的理解是正确的。LL(1)文法和LR文法都是上下文无关文法（CFG）的子集，它们的设计是为了使解析更为简单和直接。让我们更具体地解析一下：
+>
+> ### 1. **LL(1) 文法**：
+>
+> - **LL** 代表从左到右扫描输入（第一个L）并从左到右产生派生（第二个L）。
+> - **(1)** 代表使用一个符号的前瞻来决定下一步的解析动作。
+> - LL(1)文法特别适合**递归下降解析**，这是一种简单的、可以手写的、顶部向下的解析方法。
+> - LL(1)文法要求对于给定的非终端和输入符号，必须有一个明确的产生式来应用，也就是说，它不允许有二义性。
+>
+> ### 2. **LR 文法**：
+>
+> - **LR** 代表从左到右扫描输入（L）并从右到左产生派生（R）。
+> - **LR解析器**是一种底部向上的解析器，它构建一个解析树，从叶子开始并向上到根。
+> - LR文法比LL(1)文法能描述的语言范围更广泛。
+> - 常见的LR解析器有：SLR、LALR、Canonical LR等，其中**LALR**（Look-Ahead LR）==是很多实际工具（如 Yacc 和 Bison）中最常用的==。
+>
+> ### 3. **关于子集关系**：
+>
+> - 并不是所有的上下文无关文法都是LL(1)或LR(1)。这两者都是CFG的子集，并且它们都有自己的限制。
+> - 通常，LR文法的范围更广，因此LR解析器可以处理更多的上下文无关文法。
+>
+> ### 4. **目的和应用**：
+>
+> - 这两种文法的制定是为了简化解析。特定的解析技术可能只适用于某种特定类型的文法。
+> - 为了使一个给定的CFG适合特定的解析技术（如LL或LR），通常需要重写或修改原始的CFG。
+>
+> 综上所述，您是对的：LL(1)和LR文法都是上下文无关文法的子集，它们都是为了便于特定的解析技术而定义的特定形式的CFG。
+
+
+
+
+
+## Semantic analysis
+
+- What Does Semantic Analysis Do?具体包括哪些方面？
+
+  > ![image-20230922164407243](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922164407243.png)
+
+- 对于这次lab来说，3，4点可以一起实现，核心在于建立type的的继承图（同时这个继承图也会在type checking，type inference中起到作用，所以优先进行）
+- 剩下的要求主要就是type environment、type inference，目前的想法是：首先自底向上进行inference&checking，符合inference的假设条件的就对结果进行
+- 对于type checking，type checking的核心在于对与不同type的对象之间的==运算符==的处理：比如，3+“2”在cool语言中是不合理的（因此也不会有相应的、相匹配的inference rule存在，换言之，在inference的过程中我们会推测根据3和“2”的字面值推导出它们分别的类型==，但是，并不会计算这个表达式的类型，因为不存在与之对应的inference rule==，而这应当就是type checking发挥作用的地方：呃呃，好像逻辑很简单：只要发现没有相关的rule，就报错，并且进行相关的错误处理（使得编译继续下去），这就是type checking，有rule，就进行inference）
+- 在完成了前述的自底向上的过程后，AST的每一个node都会有与之对应的type，此时，再自顶向下构建每一个node的type environment，因此推测type environment的实现应该是为每一个node新增一个属性（本实验中应该是3个，变量、method、selftype各一个）
+
+### scope
+
+- 为什么需要引入scope的概念？
+- most closely nested rule
+- static scope vs dynamic scope
+- 列举cool语言中的所有identifier（6种：
+- 这六种identifier对于`most closely nested rule`有着不同的反响，Not all kinds of identifiers follow the most-closely nested rule
+  - class：
+  - attr：
+  - method：
+
+
+### type checking
+
+###### 为什么需要type cheking
+
+- 提示：从汇编（机器代码）的视角出发
+
+###### 3种基础case的处理
+
+- 这里考虑常规的3种case（也即：let expr、case expr、formal expr）：对于它们的type check思路不难：可以使用stack轻松实现这一点：stack的每一个元素的类型是一个symbol table，除了基本的push和pop操作之外，增加一个find的操作。
+
+
+- ？？？这种做法的弊端在于容易出现存储空间的浪费，好处在于容易理解
+
+- 优化版本的stack：stack的每一个元素是一个具体的symbol，而push和add操作不变==，find的逻辑为：自栈顶往下遍历，找到的第一个符合要求的symbol作为结果==。没有则返回-1
+
+- ？？？无法处理变量重定义的错误，本质上是之前的栈结构==不能保证在同一个scope内变量声明的唯一性==，解决方法也很简单：新增一个check函数，每次执行add之前调用一次。
+- 但是仅仅是这样又会引出另一个问题，或者说前面在描述时并没有把所谓的重定义的前提条件描述清楚：这里的重定义应当是仅仅在同一个scope内才会发生错误。因此还需新增两个函数：enter_scope(),close_scope()
+- symbol_table数据结构体在本项目中已经实现
+
+###### 3种特殊case的处理
+
+这部分等做完lab再来
+
+- 结合type的定义，我们可以知道，目前我的推测是，type inference和checking应该是在自底向上的遍历中同步进行的：
+
+### 对type的理解
+
+- type的内涵有两方面：
+
+  - a type is a set of values（结合词法分析中正则表达式理解）
+
+  - 更重要的一点：A set of ==operations== on those values
+    - 举不出例子你就是没有掌握！
+
+- 具体到cool这种面向对象语言，一个class就是一种type，两者完全对应
+- Statically typed和Dynamically typed的区别
+  - 举不出例子你就是没有掌握！
+
+### cool中的type
+
+- 除了class name表示一个type，还有什么特殊case？
+- 用户为identifier定义type
+- 编译器为expr计算（infer）type
+  - 出于统一性的考虑，每一个expr都有其返回的type，甚至if-else这种也有，这不过对它们会进行特殊处理
+
+### type inferrence
+
+- 首先，你要理解为什么需要type inference：
+
+  - 要执行type cheking，我们首先需要知道每一个identifier/expr当前的类型，例如：int b=a*c；这里我们对于a和c的类型可以通过查找symbol table的栈结构来实现，但是，仅仅知道a和c的类型还不够，我们还需要一套成体系的规则来告诉编译器：对于当前的两种type执行乘法，其expr将会是何种type。
+  - 值得一提的是：int b=a*c；涉及了两个expr而不是一个。
+
+- 这里涉及到新的形式语言：(箭头指的位置可以加type environment)
+
+  > ![image-20230922161026224](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922161026224.png)
+
+- 形式语言的soundness vs正确性：eg，对于下面的写法，很正确，but not sound：
+
+  > ![image-20230922161525073](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922161525073.png)
+
+- 理解这句话：Types are computed in a ==bottom-up pass== over the AST
+
+  - 那么自底向上计算node的type时的规则就很重要了：
+
+    > ![image-20230922162110508](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922162110508.png)
+    >
+    > 注意这里的new返回的是类型，而不是该类型的指针。
+    >
+    > ![image-20230922162151326](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922162151326.png)
+
+### type environment
+
+- 在课件中，它指出根据现有的结构体我们无法知道variable reference的类型，也即前面的int b=a*c中的a和c的类型。但是，我认为这依赖于之前涉及的栈结构是完全可以实现的。课件以此引出了所谓的type environment的概念。
+
+- 这里先存个疑，到时候看看type environment和前面的symbol table的栈结构是不是在实现上是同一种数据结构。
+
+  - O[T/x]本质上是一种对type environment的修改，具体来说，对于input为x时，把output修改为T。在实际实现时应该与栈有关，因为这里必然会涉及到对原来的type environment的回溯。
+
+  - 这里，e1中往往包含了x，因此==参与到e1最终类型的计算的x的类型==都会是T0。
+
+
+> ![image-20230921223247310](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230921223247310.png)
+
+- type environment还有着更加强大的功能：借助它，我们可以实现cool语言中，变量名与方法名享有独立的命名空间，SLEF_TYPE的机制也可以借助它来实现
+  - 举不出例子就是不会！
+  - 能不能看明白：![image-20230922163746073](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922163746073.png)
+
+### method types
+
+###### 遇到问题
+
+对于函数调用（注意，是调用而不是定义），函数的返回值类型，形式参数的类型都是未知的。
+
+###### 解决方法
+
+自然也是使用type environment的方式解决，但是这里需要注意的是，在cool语言以及一些其他语言中，==函数与变量之间是独立的命名空间==，因此这里没有再使用O而是用了M。注意M接收两个参数，C是类名。
+
+- 我想现在你对于所谓的namespace应该也有更深的理解了
+
+![image-20230922003833607](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922003833607.png)
+
+![image-20230922004151339](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922004151339.png)
+
+### self type
+
+###### 遇到问题
+
+对于SELF_TYPE关键字（类似于cpp中的this指针），我们需要知道它当前指向的class
+
+###### 解决方法
+
+不同的问题，==同一种思路==：在新增了M(T,f)的type environment的基础上，再新增一个type environment：C
+
+### type checking实现
+
+
+
+- 现在知道为什么学好数据结构很重要了吧。
+- 不懂就问，就你那一点代码实践都没有的数据结构也敢叫学过数据结构吗？？？做完cs143赶紧去做数据结构&算法的lab去，最好别再结合答案做了。
+
+![image-20230922012033017](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922012033017.png)
+
+![image-20230922013512694](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922013512694.png)
+
+## PA4实现
+
+### 源码解析
+
+###### symtbl.h
+
+- 主要是要读懂两个数据结构：SymtabEntry和SymbolTable
+
+> 这段代码实现了一个符号表(Symbol Table)的数据结构。符号表是一个关键的数据结构，常用于编译器、解释器以及其他需要管理名称与关联数据之间关系的应用中。
+>
+> 1. **符号表条目类**(`SymtabEntry`)：
+>
+>    ```
+>    cppCopy codetemplate <class SYM, class DAT>
+>    class SymtabEntry {
+>    private:
+>      SYM id;        // the key field
+>      DAT *info;     // associated information for the symbol
+>    public:
+>      SymtabEntry(SYM x, DAT *y) : id(x), info(y) { }
+>      SYM get_id() const    { return id; }
+>      DAT *get_info() const { return info; }
+>    };
+>    ```
+>
+>    这是一个模板类，表示符号表的一个条目。它将类型为`SYM`的键与类型为`DAT`的数据相关联。它提供了获取这些数据的方法。
+>
+> 2. **符号表类**(`SymbolTable`)：
+>
+>    ```
+>    cppCopy codetemplate <class SYM, class DAT>
+>    class SymbolTable
+>    {
+>       ...
+>    };
+>    ```
+>
+>    这个模板类表示符号表本身。它的实现是一个“列表的列表”，其中外部列表表示作用域列表，而内部列表表示给定作用域中的符号。这允许符号表管理嵌套的作用域，这在编译器和解释器中非常有用。
+>
+>    - `enterscope()`: 进入一个新的作用域。
+>    - `exitscope()`: 退出当前的作用域。
+>    - `addid()`: 向当前作用域添加一个新的符号及其关联数据。
+>    - `lookup()`: 查找一个符号，从最内层的作用域开始，直到找到或达到最外层的作用域。
+>    - `probe()`: 仅在顶层作用域中查找一个符号。
+>    - `dump()`: 打印符号表的内容。
+
+
+
+###### semant.cc
+
+- 下面是预先给出的代码：其作用在于以枚举的方式对stringTbale进行了初始化------把所有的keywords添加到identifier对应的idtable中
+
+```cpp
+//////////////////////////////////////////////////////////////////////
+//
+// Symbols
+//
+// For convenience, a large number of symbols are predefined here.
+// These symbols include the primitive type and method names, as well
+// as fixed names used by the runtime system.
+//
+//////////////////////////////////////////////////////////////////////
+static Symbol 
+    arg,
+    arg2,
+    Bool,
+    concat,
+    cool_abort,
+    copy,
+    Int,
+    in_int,
+    in_string,
+    IO,
+    length,
+    Main,
+    main_meth,
+    No_class,
+    No_type,
+    Object,
+    out_int,
+    out_string,
+    prim_slot,
+    self,
+    SELF_TYPE,
+    Str,
+    str_field,
+    substr,
+    type_name,
+    val;
+//
+// Initializing the predefined symbols.
+//
+static void initialize_constants(void)
+{
+    arg         = idtable.add_string("arg");
+    arg2        = idtable.add_string("arg2");
+    Bool        = idtable.add_string("Bool");
+    concat      = idtable.add_string("concat");
+    cool_abort  = idtable.add_string("abort");
+    copy        = idtable.add_string("copy");
+    Int         = idtable.add_string("Int");
+    in_int      = idtable.add_string("in_int");
+    in_string   = idtable.add_string("in_string");
+    IO          = idtable.add_string("IO");
+    length      = idtable.add_string("length");
+    Main        = idtable.add_string("Main");
+    main_meth   = idtable.add_string("main");
+    //   _no_class is a symbol that can't be the name of any 
+    //   user-defined class.
+    No_class    = idtable.add_string("_no_class");
+    No_type     = idtable.add_string("_no_type");
+    Object      = idtable.add_string("Object");
+    out_int     = idtable.add_string("out_int");
+    out_string  = idtable.add_string("out_string");
+    prim_slot   = idtable.add_string("_prim_slot");
+    self        = idtable.add_string("self");
+    SELF_TYPE   = idtable.add_string("SELF_TYPE");
+    Str         = idtable.add_string("String");
+    str_field   = idtable.add_string("_str_field");
+    substr      = idtable.add_string("substr");
+    type_name   = idtable.add_string("type_name");
+    val         = idtable.add_string("_val");
+}
+
+
+```
+
+###### classTable的合理性检验
+
+从这里可以看出，我们为什么在定义inhert_graph时要把第一项设置为child，第二项设置为parent了。（反过来就不行）
+
+因为两者是多对一的关系
+
+```cpp
+/**
+ * 判断定义是否合理：
+ * 1. 不含环。
+ * 2. 判断是否包含Main。
+ * 3. 判断父类是否都已定义。
+ **/
+bool ClassTable::is_valid(){
+    bool cycle_flag = true;
+    bool main_flag = false;
+    bool define_flag = true;
+    for (auto it = inhert_graph.begin(); it != inhert_graph.end(); it++){
+        Symbol child = it->first;
+        Symbol parent = it->second;
+        // 判断是否包含main
+        if (child == Main){
+            main_flag = true;
+        }
+        // Object的parent为No_class, 该条件判断是否为根
+        while (parent != No_class){
+            // 环
+            if (parent == child){
+                semant_error(class_table[child]) << "Has cycle!" << endl;
+                return false;
+            }
+            // 不存在父节点
+            if (!inhert_graph.count(parent)){
+                semant_error(class_table[child]) << "Doesn't contain parent!" << endl;
+                return false;
+            }
+            parent = inhert_graph[parent];
+        }
+    }
+
+    if (main_flag){
+        return true;
+    }else{
+        semant_error() << "Class Main is not defined." << endl;
+        return false;
+    }
+}
+
+```
+
+###### 问题记录
+
+![image-20230922191045770](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922191045770.png)
+
+![image-20230922235236462](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922235236462.png)
+
+
+
+```
+Feature attr_class::type_check(Env env){
+    // step1
+    env.om->enterscope();
+    // step2
+    Symbol cur_class = env.cur_class->get_name();
+    env.om->addid(self, &cur_class);
+    // step3
+    Symbol true_return_type = init->type_check(env)->type;
+    // 3.1
+    if (name == self){
+        env.ct->semant_error(env.cur_class->get_filename(), this) << "Attr shouldn't be self!" << endl;
+    }
+    // 3.2
+    // SELF_TYPE的类型为自身
+    if (true_return_type == SELF_TYPE){
+        true_return_type = env.cur_class->get_name();
+    }
+    // 3.3
+    // 判断是否为type_decl的子类, 排除No_type
+    if (true_return_type != No_type){
+        if (!(env.ct->is_sub_class(true_return_type, type_decl))){
+            env.ct->semant_error(env.cur_class) << "True attr type isn't subcalss of type_decl!" << endl;
+        }
+    }
+
+    // step1
+    env.om->exitscope();
+
+    return this;
+}
+
+```
+
+> 上面是对cool语言的类的属性进行type_checking的代码，我不太理解，为什么对每个属性进行type_checking前后分别需要进行enterscope和exitscope的操作？请结合实例加以解释？
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> 在 COOL (Classroom Object Oriented Language) 中，`enterscope` 和 `exitscope` 都与符号表（Symbol Table）的使用有关。符号表通常用于存储和跟踪当前作用域内的变量（及其类型）。
+>
+> 让我们首先简要解释上面的代码。
+>
+> 1. **enterscope**: 创建一个新的作用域层级。在这个新的层级中，你可以添加新的符号或覆盖父级作用域中的符号。
+> 2. 在这个新的作用域中，`self` 被关联到当前类的名称。这意味着在属性的初始化表达式中，如果你引用 `self`，它会解析为当前类的类型。
+> 3. 进行实际的类型检查。
+> 4. **exitscope**: 退出当前作用域，回到父级作用域。
+>
+> 为什么要这样做？让我们通过一个例子来理解。
+>
+> 假设你有如下的 COOL 代码：
+>
+> ```
+> coolCopy codeclass A {
+>     x : Int <- 5;
+>     y : SELF_TYPE <- self;
+> };
+> ```
+>
+> 在处理属性 `y` 的初始化时（即 `self`），你需要知道 `self` 的类型。通过在属性的类型检查之前创建一个新的作用域并关联 `self` 为 `A`，你确保了 `self` 在属性初始化表达式中的正确类型解析。一旦属性的类型检查完成，你可以退出作用域，因为对于类的其他部分（如其他属性或方法），你可能不希望有这个特定的 `self` 绑定。
+>
+> 实际上，为每个属性进行这样的作用域操作可能是为了简化逻辑和避免在处理一个属性时由于前一个属性引入的可能的副作用。例如，如果两个属性之间有依赖关系或相互引用，这样的作用域隔离可以帮助避免复杂的交互效应。
+>
+> 简而言之，这是一种确保在处理每个属性时都有一个清晰、明确的上下文，并且不受其他属性可能引入的副作用影响的方法。
+
+
+
+
+
+> 对于cool语言，类中的attr和method是否共享同一个命名空间
+>
+> 
+>
+> 在 COOL (Classroom Object Oriented Language) 中，属性（`attr`）和方法（`method`）共享同一个命名空间。这意味着在同一个类中，你不能有一个与属性同名的方法。
+>
+> 例如，以下的 COOL 代码是非法的，因为 `foo` 同时被用作属性和方法的名称：
+>
+> ```
+> coolCopy codeclass A {
+>     foo : Int;
+>     foo() : Int { ... };
+> };
+> ```
+>
+> 尝试编译这样的代码会产生一个错误，指出 `foo` 已经在该类中被定义过了。
+>
+> 但是对于cpp：
+>
+> ![image-20230922235812185](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230922235812185.png)
+>
+> 这里也许可以作为一个课程设计可以优化的点
+
+==记住symboltable实际上是一个scopelist，这一点非常之重要==
+
+一些重要函数
+
+```
+// class__class, 初始化, 递归处理, 先设置父节点
+void class__class::init(Env env){
+    if (name != Object){
+        // 先设置父节点
+        env.ct->get_class(parent)->init(env);
+    }
+
+    // 设置feature
+    for (int i = features->first(); features->more(i); i = features->next(i)){
+        features->nth(i)->add_to_env(env);
+    }
+}
+
+// method_class
+void method_class::add_to_env(Env env){
+ //对于method的add_to_env,这里应该是一处bug，商代修复
+}
+
+
+```
+
+![image-20230923110226245](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923110226245.png)
+
+
+
+
+
+评价为细节拉满
+
+
+
+![image-20230923111301456](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923111301456.png)
+
+如果方法的返回类型是`SELF_TYPE`，则返回值的实际类型应当是调用该方法的对象的类型。这就是为什么`type`被赋值为`t0`的原因。`t0`在前面的代码中被确定为`expr`的类型。
+
+以Cool（Classroom Object Oriented Language）为例，它有一个特殊的类型`SELF_TYPE`，表示调用者对象的实际类型。例如，在一个类`A`中，如果有一个方法的返回类型是`SELF_TYPE`，那么当这个方法在一个`A`的实例上被调用时，它返回的类型就是`A`。
