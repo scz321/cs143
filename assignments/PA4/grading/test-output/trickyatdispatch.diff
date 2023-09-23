@@ -1,0 +1,20 @@
+16c16
+<       : Int
+---
+>       : _no_type
+31c31
+<       : Int
+---
+>       : _no_type
+46c46
+<       : String
+---
+>       : _no_type
+70c70
+<         : B
+---
+>         : _no_type
+75c75
+<       : Int
+---
+>       : _no_type

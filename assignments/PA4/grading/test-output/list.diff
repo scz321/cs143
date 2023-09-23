@@ -1,0 +1,230 @@
+16c16
+<       : Bool
+---
+>       : _no_type
+28c28
+<           : SELF_TYPE
+---
+>           : _no_type
+32c32
+<         : Object
+---
+>         : _no_type
+36,37c36,37
+<         : Int
+<       : Int
+---
+>         : _no_type
+>       : _no_type
+49c49
+<           : SELF_TYPE
+---
+>           : _no_type
+53c53
+<         : Object
+---
+>         : _no_type
+57,58c57,58
+<         : SELF_TYPE
+<       : SELF_TYPE
+---
+>         : _no_type
+>       : _no_type
+72c72
+<         : Cons
+---
+>         : _no_type
+78c78
+<         : Int
+---
+>         : _no_type
+82c82
+<         : SELF_TYPE
+---
+>         : _no_type
+84c84
+<       : List
+---
+>       : _no_type
+113c113
+<       : Bool
+---
+>       : _no_type
+121c121
+<       : Int
+---
+>       : _no_type
+129c129
+<       : List
+---
+>       : _no_type
+150,151c150,151
+<           : Int
+<         : Int
+---
+>           : _no_type
+>         : _no_type
+158,159c158,159
+<           : List
+<         : List
+---
+>           : _no_type
+>         : _no_type
+163,164c163,164
+<         : SELF_TYPE
+<       : SELF_TYPE
+---
+>         : _no_type
+>       : _no_type
+194c194
+<           : List
+---
+>           : _no_type
+198c198
+<         : Bool
+---
+>         : _no_type
+204c204
+<           : SELF_TYPE
+---
+>           : _no_type
+210c210
+<           : String
+---
+>           : _no_type
+212c212
+<         : SELF_TYPE
+---
+>         : _no_type
+220c220
+<             : SELF_TYPE
+---
+>             : _no_type
+228c228
+<               : List
+---
+>               : _no_type
+232c232
+<             : Int
+---
+>             : _no_type
+234c234
+<           : SELF_TYPE
+---
+>           : _no_type
+240c240
+<             : SELF_TYPE
+---
+>             : _no_type
+246c246
+<             : String
+---
+>             : _no_type
+248c248
+<           : SELF_TYPE
+---
+>           : _no_type
+254c254
+<             : SELF_TYPE
+---
+>             : _no_type
+262c262
+<               : List
+---
+>               : _no_type
+266c266
+<             : List
+---
+>             : _no_type
+268,270c268,270
+<           : Object
+<         : Object
+<       : Object
+---
+>           : _no_type
+>         : _no_type
+>       : _no_type
+293c293
+<                     : List
+---
+>                     : _no_type
+299c299
+<                     : Int
+---
+>                     : _no_type
+301c301
+<                   : List
+---
+>                   : _no_type
+307c307
+<                   : Int
+---
+>                   : _no_type
+309c309
+<                 : List
+---
+>                 : _no_type
+315c315
+<                 : Int
+---
+>                 : _no_type
+317c317
+<               : List
+---
+>               : _no_type
+323c323
+<               : Int
+---
+>               : _no_type
+325c325
+<             : List
+---
+>             : _no_type
+331c331
+<             : Int
+---
+>             : _no_type
+333,334c333,334
+<           : List
+<         : List
+---
+>           : _no_type
+>         : _no_type
+344c344
+<               : List
+---
+>               : _no_type
+348,349c348,349
+<             : Bool
+<           : Bool
+---
+>             : _no_type
+>           : _no_type
+357c357
+<               : SELF_TYPE
+---
+>               : _no_type
+363c363
+<               : List
+---
+>               : _no_type
+365c365
+<             : Object
+---
+>             : _no_type
+374c374
+<                 : List
+---
+>                 : _no_type
+378,382c378,382
+<               : List
+<             : List
+<           : List
+<         : Object
+<       : Object
+---
+>               : _no_type
+>             : _no_type
+>           : _no_type
+>         : _no_type
+>       : _no_type

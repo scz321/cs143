@@ -1,0 +1,254 @@
+18c18
+<         : SELF_TYPE
+---
+>         : _no_type
+26c26
+<           : Bar
+---
+>           : _no_type
+34c34
+<           : Razz
+---
+>           : _no_type
+42,43c42,43
+<           : Bar
+<       : Razz
+---
+>           : _no_type
+>       : _no_type
+59c59
+<               : Razz
+---
+>               : _no_type
+63c63
+<             : Int
+---
+>             : _no_type
+69c69
+<               : Foo
+---
+>               : _no_type
+73,74c73,74
+<             : Int
+<           : Int
+---
+>             : _no_type
+>           : _no_type
+80c80
+<             : SELF_TYPE
+---
+>             : _no_type
+84,85c84,85
+<           : Int
+<         : Int
+---
+>           : _no_type
+>         : _no_type
+91c91
+<           : SELF_TYPE
+---
+>           : _no_type
+95,96c95,96
+<         : Int
+<       : Int
+---
+>         : _no_type
+>       : _no_type
+108c108
+<         : Int
+---
+>         : _no_type
+119c119
+<               : Int
+---
+>               : _no_type
+123,125c123,125
+<               : Int
+<             : Int
+<           : Int
+---
+>               : _no_type
+>             : _no_type
+>           : _no_type
+129,131c129,131
+<           : Int
+<         : Int
+<       : Int
+---
+>           : _no_type
+>         : _no_type
+>       : _no_type
+148c148
+<         : SELF_TYPE
+---
+>         : _no_type
+152c152
+<       : Int
+---
+>       : _no_type
+162c162
+<         : SELF_TYPE
+---
+>         : _no_type
+166c166
+<       : Int
+---
+>       : _no_type
+183c183
+<         : SELF_TYPE
+---
+>         : _no_type
+191c191
+<           : Bar
+---
+>           : _no_type
+199,200c199,200
+<           : Bar
+<       : Bar
+---
+>           : _no_type
+>       : _no_type
+218c218
+<                 : Razz
+---
+>                 : _no_type
+223c223
+<               : Int
+---
+>               : _no_type
+229c229
+<                 : Foo
+---
+>                 : _no_type
+233,234c233,234
+<               : Int
+<             : Int
+---
+>               : _no_type
+>             : _no_type
+240c240
+<               : Bar
+---
+>               : _no_type
+244,245c244,245
+<             : Int
+<           : Int
+---
+>             : _no_type
+>           : _no_type
+251c251
+<             : SELF_TYPE
+---
+>             : _no_type
+255,256c255,256
+<           : Int
+<         : Int
+---
+>           : _no_type
+>         : _no_type
+262c262
+<           : SELF_TYPE
+---
+>           : _no_type
+266,267c266,267
+<         : Int
+<       : Int
+---
+>         : _no_type
+>       : _no_type
+282c282
+<       : Int
+---
+>       : _no_type
+292c292
+<         : SELF_TYPE
+---
+>         : _no_type
+300c300
+<           : Foo
+---
+>           : _no_type
+308c308
+<           : Bar
+---
+>           : _no_type
+316c316
+<           : Razz
+---
+>           : _no_type
+324,325c324,325
+<           : Bar
+<       : Foo
+---
+>           : _no_type
+>       : _no_type
+335c335
+<         : SELF_TYPE
+---
+>         : _no_type
+339c339
+<       : Int
+---
+>       : _no_type
+351c351
+<           : SELF_TYPE
+---
+>           : _no_type
+357c357
+<           : Int
+---
+>           : _no_type
+359c359
+<         : SELF_TYPE
+---
+>         : _no_type
+363,364c363,364
+<         : Int
+<       : Int
+---
+>         : _no_type
+>       : _no_type
+376c376
+<         : Int
+---
+>         : _no_type
+387c387
+<               : Int
+---
+>               : _no_type
+391,393c391,393
+<               : Int
+<             : Int
+<           : Int
+---
+>               : _no_type
+>             : _no_type
+>           : _no_type
+397,399c397,399
+<           : Int
+<         : Int
+<       : Int
+---
+>           : _no_type
+>         : _no_type
+>       : _no_type
+414c414
+<       : Bazz
+---
+>       : _no_type
+422c422
+<       : Foo
+---
+>       : _no_type
+430c430
+<       : Razz
+---
+>       : _no_type
+438c438
+<       : Bar
+---
+>       : _no_type
+446c446
+<       : String
+---
+>       : _no_type

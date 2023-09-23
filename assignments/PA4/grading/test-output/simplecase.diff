@@ -1,0 +1,24 @@
+16c16
+<       : Int
+---
+>       : _no_type
+42c42
+<           : Object
+---
+>           : _no_type
+50c50
+<             : Int
+---
+>             : _no_type
+58c58
+<             : Bool
+---
+>             : _no_type
+66,68c66,68
+<             : String
+<         : Object
+<       : Object
+---
+>             : _no_type
+>         : _no_type
+>       : _no_type

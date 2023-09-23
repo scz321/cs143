@@ -1,0 +1,38 @@
+20c20
+<           : String
+---
+>           : _no_type
+24c24
+<         : Int
+---
+>         : _no_type
+30c30
+<           : String
+---
+>           : _no_type
+36c36
+<           : Int
+---
+>           : _no_type
+40c40
+<           : Int
+---
+>           : _no_type
+42c42
+<         : String
+---
+>         : _no_type
+48c48
+<           : String
+---
+>           : _no_type
+54c54
+<           : String
+---
+>           : _no_type
+56,57c56,57
+<         : String
+<       : String
+---
+>         : _no_type
+>       : _no_type

@@ -1,0 +1,14 @@
+16c16
+<       : Int
+---
+>       : _no_type
+61c61
+<         : A
+---
+>         : _no_type
+65,66c65,66
+<         : B
+<       : Bool
+---
+>         : _no_type
+>       : _no_type

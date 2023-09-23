@@ -1,0 +1,16 @@
+29c29
+<           : String
+---
+>           : _no_type
+35c35
+<             : String
+---
+>             : _no_type
+39,41c39,41
+<           : Int
+<         : Int
+<       : Int
+---
+>           : _no_type
+>         : _no_type
+>       : _no_type

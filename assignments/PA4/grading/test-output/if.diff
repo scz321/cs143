@@ -1,0 +1,48 @@
+35c35
+<                 : Int
+---
+>                 : _no_type
+41c41
+<                   : Int
+---
+>                   : _no_type
+45,47c45,47
+<                   : Int
+<                 : Int
+<               : Int
+---
+>                   : _no_type
+>                 : _no_type
+>               : _no_type
+51,52c51,52
+<               : Int
+<             : Int
+---
+>               : _no_type
+>             : _no_type
+56,57c56,57
+<             : Int
+<           : Bool
+---
+>             : _no_type
+>           : _no_type
+61c61
+<           : Int
+---
+>           : _no_type
+67c67
+<             : SELF_TYPE
+---
+>             : _no_type
+71,73c71,73
+<           : String
+<         : Object
+<       : Object
+---
+>           : _no_type
+>         : _no_type
+>       : _no_type
+81c81
+<       : String
+---
+>       : _no_type
