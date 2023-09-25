@@ -2485,10 +2485,6 @@ Feature attr_class::type_check(Env env){
 
 
 
-
-
-
-
 - 评价为细节拉满：
 
 
@@ -2499,14 +2495,416 @@ Feature attr_class::type_check(Env env){
 
 以Cool（Classroom Object Oriented Language）为例，它有一个特殊的类型`SELF_TYPE`，表示调用者对象的实际类型。例如，在一个类`A`中，如果有一个方法的返回类型是`SELF_TYPE`，那么当这个方法在一个`A`的实例上被调用时，它返回的类型就是`A`。
 
-
-
-
+###### type inference的错误处理
 
 - 有的地方报错才是正常的！因为测试的cool程序本身有语法问题！
+
+- 关于error handling，有两个最基本的思路
+
+  - 返回Object（所有类的父类）
+
+    - 问题：级联报错
+
+      > ![image-20230924111213760](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924111213760.png)
+
+  - 返回no type(所有类的子类，仅对编译器可见，使用它的好处：==可以防止级联报错==)
+
+    - 问题：在数据结构层面，实现起来可能稍微有些困难（事实上，加入no type之后它就不在是tree了）
+
 
 ----------------------------番外结束，PA4结束，完结撒花，呜呼~~----------------------------------------------------
 
 ### 好好好
 
 ![image-20230923231642057](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230923231642057.png)
+
+## Backend
+
+后端包括两项内容：
+
+- 
+-  
+
+其中前者不在本项目的讨论范围之内，我们主要讨论code generation。
+
+---------------------------------------------------分割线-------------------------------------------------------------
+
+那么，我们首先要知道我们相要生成的是个什么玩意儿--因此首先要对程序的Run time organization有一个清晰的认识
+
+首先，按照我们目前浅薄的os知识，我们可以大致把程序在内存中的映像分为两段：代码段和数据段，这意味着，所谓的code generation不只是字面意思--不只是产生代码段！它还包括数据段的生成，并且要能够在代码段中添加对数据段的引用！（结合你浅薄的汇编语言的知识应该可以理解这一点）
+
+
+
+###### 两个重要assumption：
+
+> ![image-20230924124007780](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924124007780.png)
+
+###### lifetime vs scope
+
+- ![image-20230924124225195](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924124225195.png)
+
+- activation tree
+  - depends on run time behavior
+  - is different under different input
+  - stack结构非常适合与记录activation tree（发生函数调用则push，return则pop），因此，在我们前面的code段和数据段的基础上，我们为程序的内存空间新增了stack：
+
+好，现在我们知道了要用stack来实现activation tree，但是我们尚不清楚每一次push具体要push什么信息，这就是所谓的Activation record的研究内容了，或者说是stack frame，不难理解，一个frame需要包含下列内容：
+
+![image-20230924130019961](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924130019961.png)
+
+课上给出了一个frame的示例设计：
+
+![image-20230924131035309](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924131035309.png)
+
+但是事实上（在cool project中)这种设计往往因语言/编译器的不同而不同：比如本项目的return addr似乎就是通过寄存器的方式进行存取的（更加高效）
+
+汇编语言对这方面也有所设计，可以去看看汇编语言的学习笔记
+
+
+
+！！前面借用了stack的概念来描述，但本质上，它其实是一个数组（因为我们在“pop”之后，仍然需要访问被pop的frame中的内容！！）
+
+eg：第二次f调用结束后，我们需要访问1处的result，在第一次f调用中使用。这里的contol link，视频中的描述是：指向parent的activation，我的猜测是指明在这个“数组“中我们该返回的位置（注意体会它和return addrees的区别！！！）
+
+![image-20230924131521352](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924131521352.png)
+
+###### globals & heap
+
+![image-20230924133217932](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924133217932.png)
+
+- alignment（对齐）
+
+首先回顾一下machine word的概念：它与计算机硬件有关，一般要么是8bytes a word，要么是4bytes a word。
+
+为什么需要理解它呢？因为它和我们的地址息息相关：
+
+![image-20230924140949105](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924140949105.png)
+
+因此，对于按字编码的机器来说，我们必须要进行alignment
+
+stack machine vs register machine
+
+- 首先要理解这两个描述的具体内容，然后，对这两者的优点综合一下，得到我们当前使用的stack-register machine。这里一个很重要的特征在于，我们在执行计算之前和执行计算之后，stack的内容始终都是<init>，保持不变。
+
+![image-20230924143544007](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924143544007.png)
+
+具体到本project：
+
+![image-20230924144233482](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924144233482.png)
+
+能理解这里为什么要+4吗？
+
+![image-20230924144447326](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924144447326.png)
+
+因为mips中的stack是向低地址增长的！
+
+
+
+
+
+
+
+![image-20230924164053372](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924164053372.png)
+
+![image-20230924165435020](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924165435020.png)
+
+
+
+
+
+![image-20230924170230995](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924170230995.png)
+
+![image-20230924170241030](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924170241030.png)
+
+
+
+
+
+![image-20230924170941534](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924170941534.png)
+
+
+
+
+
+![image-20230924185945400](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924185945400.png)
+
+![image-20230924190107157](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924190107157.png)
+
+![image-20230924190542119](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924190542119.png)
+
+
+
+
+
+!!!!!原来如此！！   takl is cheap ,show me the code
+
+这里和我当时学习汇编时查到的关于x86的设计略有区别：x86有6个寄存器专门用来保存当前的函数的参数，多的才放到当前的stack frame上面
+
+caller side：
+
+![image-20230924191335991](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924191335991.png)
+
+callee side：
+
+- 值得注意的是，我们只有在jump and link指令执行之后才能知道caller的返回地址，这就导致了：把return address push到栈上的指令实际上是在callee中执行的
+
+![image-20230924193402927](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924193402927.png)
+
+1. ra寄存器的值我猜测是在caller执行jump and link指令时进行赋值的，但是push到栈上还得是在这里
+2. 它和3组合在一起，作用是结束这一整次函数调用：释放整个栈帧（4n+8）
+3. 这里是在结束这一次函数调用之后，重置当前的frame pointer。从这里也可以看出frame pointer是指向当前frame 的”栈顶“的。
+4. 4n+8的由来：函数调用时花费4n+4（n个参数+1*记录fp），callee中花费1，记录整个函数的返回地址
+
+目前不太理解==最开始为什么要记录fp==
+
+你前面对fp指向的位置的理解时错误的！！！！
+
+结合下图理解：
+
+![image-20230924194648327](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924194648327.png)
+
+> 请结合实例解释frame pointer的作用
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> `frame pointer`（通常被称为`fp`）是一个寄存器，它在许多架构（如 x86 和 MIPS）中都存在。它的主要作用是为函数调用中的局部变量和参数提供一个稳定的基准点，从而使得在栈上访问这些变量和参数变得简单和一致。
+>
+> 在大多数情况下，当一个函数被调用时，栈指针（通常称为`sp`）会随着局部变量的分配和释放而上下移动。如果我们直接使用`sp`来访问局部变量，那么每次栈的变化都可能导致访问偏移的变化。为了避免这个问题，`frame pointer`为我们提供了一个固定的参考点。
+>
+> 现在让我们通过一个简单的例子来理解`frame pointer`的作用：
+>
+> ```
+> cCopy codeint add(int a, int b) {
+>     int temp = a + b;
+>     return temp;
+> }
+> ```
+>
+> 当函数`add`被调用时，它的参数`a`和`b`，以及局部变量`temp`都需要在栈上分配空间。假设我们正在使用一个架构，其中每个变量占用4个字节，并且在函数调用时，返回地址也被推入栈中。
+>
+> 一个可能的栈布局如下：
+>
+> ```
+> sqlCopy code+----------------+
+> |  Return Address  |
+> +----------------+
+> |       a        |
+> +----------------+
+> |       b        |
+> +----------------+
+> |     temp      |
+> +----------------+
+> |   ...其他数据...   |
+> +----------------+
+> ^
+> |
+> fp
+> ```
+>
+> 在这个布局中，我们可以使用`frame pointer`（`fp`）来访问`a`、`b`和`temp`：
+>
+> - `a` 位于 `fp - 8`。
+> - `b` 位于 `fp - 12`。
+> - `temp` 位于 `fp - 16`。
+>
+> 无论栈指针如何移动，这些偏移量都保持不变，因为`frame pointer`在函数的执行期间是固定的。
+>
+> 总之，`frame pointer`为我们提供了一个稳定的基准点，使我们能够轻松地在栈上访问函数的局部变量和参数，而不必担心栈的动态变化。
+
+
+
+
+
+![image-20230924195716818](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924195716818.png)
+
+
+
+
+
+番外：为什么在本项目中只需要一个临时寄存器就够了呢？
+
+因为所有的运算最终无非就是二元运算，不涉及三元，因此只需要对acc（a0）和t1进行运算即可
+
+
+
+妙，太妙了。这里仍然体现出了abstractoin的思想。尤其时蓝色筐处的jal指令。这里更能解释我们为什么把ra的push放在callee的汇编代码中而不是放在caller的指令序列中：因为我们对于jal指令的抽象就是：它会跳转到目标处执行相关指令，执行结束之后要能回到原处的继续执行，因此，对于fp的ra的保存和恢复3都理应是它内部的任务。
+
+![image-20230924215316859](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924215316859.png)
+
+除此之外，这里还值得注意的是，这个函数的返回值是什么呢？从结果来看，最终的返回值是存储在a0寄存器中的。
+
+
+
+
+
+编译优化思路之一:减少临时变量造成的空间浪费（从上面的例子就可以看出存在不少的空间浪费）
+
+大体思路是先按照一定的规则计算出当前的函数体执行所需要的最大的临时空间数量，按需分配。
+
+![image-20230924222305976](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924222305976.png)
+
+示例：
+
+- 优化前：
+
+![image-20230924222652964](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924222652964.png)
+
+- 优化后：
+
+![image-20230924222839366](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924222839366.png)
+
+正确的，合理的，nb的，让我实现我是不情愿的。（doge
+
+
+
+
+
+![image-20230924230644315](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924230644315.png)
+
+
+
+
+
+object是不是都存储在heap里啊
+
+![image-20230924231638072](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924231638072.png)
+
+![image-20230924231945201](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924231945201.png)
+
+】
+
+】
+
+在此基础上，继承就不难实现了。注意下面说的是在A的基础之上进行extend，而不是先复制一份再extend。（因为要保证属性的一致性）。
+
+![image-20230924232138463](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924232138463.png)
+
+呃呃，你前面的分析错了。那么既然如此，就需要注意处理公共属性的一致性了。
+
+![image-20230924232416013](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924232416013.png)
+
+
+
+
+
+![image-20230924233656121](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924233656121.png)
+
+使用这个table有两方面好处：
+
+- 首先，它是为类的继承时的新增属性提供了方便：每个子类的新增sttr的前面的结构都是完全一致的，这样便于继承。
+- 其次，考虑这样一种case：对于该类，我们有1000个instace，但是这些instance的method的代码都是共享的，这无疑极大地节省了空间。
+
+![image-20230924234604463](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924234604463.png)
+
+![image-20230924234743541](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230924234743541.png)
+
+###### continue	
+
+为什么这里还需要一个store？？？有了地址不久可以解引用去访问吗
+
+![image-20230925095750207](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925095750207.png)
+
+
+
+
+
+![image-20230925124131754](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925124131754.png)
+
+
+
+object的形式化表述
+
+![](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925124301450.png)
+
+object的特殊情况：
+
+![image-20230925124624285](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925124624285.png)
+
+
+
+
+
+- 这里的class是一个基于当前的形式语言新引入的“函数”
+
+![image-20230925181402612](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925181402612.png)
+
+
+
+![image-20230925182210184](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925182210184.png)
+
+1. 这里是用预先设置好的默认值进行初始化
+2. 这里是用赋值表达式的值进行初始化
+
+
+
+
+
+
+
+![image-20230925124857095](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925124857095.png)
+
+
+
+
+
+![image-20230925125228182](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925125228182.png)
+
+1.这对于编译的实现很重要（目前猜测它可能是类似于前面哪个stack machine的作用，计算前后stack内容保持不变
+
+
+
+
+
+分类，规则：
+
+constant：
+
+![image-20230925125618795](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925125618795.png)
+
+identifier：
+
+![image-20230925125701670](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925125701670.png)
+
+
+
+请分析框框处为什么不是保持S不变，而是新的S1
+
+![image-20230925130245160](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925130245160.png)
+
+
+
+
+
+![image-20230925130405449](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925130405449.png)
+
+
+
+
+
+6，还能递归的是吧
+
+![image-20230925131748102](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925131748102.png)
+
+
+
+
+
+![image-20230925132120957](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925132120957.png)
+
+
+
+
+
+default value
+
+![image-20230925152725403](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925152725403.png)
+
+
+
+
+
+![image-20230925184155004](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925184155004.png)
