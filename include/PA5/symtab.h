@@ -119,6 +119,7 @@ public:
        if (tbl == NULL) fatal_error("addid: Can't add a symbol without a scope.");
        ScopeEntry * se = new ScopeEntry(s,i);
        tbl = new ScopeList(new Scope(se, tbl->hd()), tbl->tl());
+       
        return(se);
    }
    
@@ -166,6 +167,11 @@ public:
          }
       }
    }
+
+
+
+
+   //
  
 };
 

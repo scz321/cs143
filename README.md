@@ -186,7 +186,7 @@ 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
 
 ## language implemention
 
-
+- 对于NFA，高珍老师上课时提到了一个很好的理解方法,状态消去法
 
 啊？？ NFA->DFA也行？
 
@@ -2908,3 +2908,1081 @@ default value
 
 
 ![image-20230925184155004](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230925184155004.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## PA5
+
+###### 感觉很有必要对整个源码进行完整的分析，，。。
+
+首先从main函数开始
+
+```cpp
+int main(int argc, char *argv[]) {
+  int firstfile_index;
+
+  handle_flags(argc,argv);
+  firstfile_index = optind;
+
+  if (!out_filename && optind < argc) {   // no -o option
+      char *dot = strrchr(argv[optind], '.');
+      if (dot) *dot = '\0'; // strip off file extension
+      out_filename = new char[strlen(argv[optind])+8];
+      strcpy(out_filename, argv[optind]);
+      strcat(out_filename, ".s");
+  }
+
+  // 
+  // Don't touch the output file until we know that earlier phases of the
+  // compiler have succeeded.
+  //
+  ast_yyparse();
+
+  if (out_filename) {
+      ofstream s(out_filename);
+      if (!s) {
+	  cerr << "Cannot open output file " << out_filename << endl;
+	  exit(1);
+      }
+      ast_root->cgen(s);
+  } else {
+      ast_root->cgen(cout);
+  }
+}
+
+```
+
+读取命令，解析参数，进行语法、词法、语义分析之后，对AST的根节点调用cgen方法（默认打印到屏幕上，可以以此来debug，实际要运行的话应该重定向到.s文件中。
+
+
+
+
+
+下面自然是cgen函数：
+
+```cpp
+void program_class::cgen(ostream &os) 
+{
+  // spim wants comments to start with '#'
+  os << "# start of generated code\n";
+
+  initialize_constants();
+  CgenClassTable *codegen_classtable = new CgenClassTable(classes,os);
+
+  os << "\n# end of generated code\n";
+}
+```
+
+首先，调用initialize_constants再向string_table中增加一些关键字。
+
+
+
+然后，使用classes和os初始化了一个CgenClassTable的实例，emmm，这个构造函数的内容就是本次代码生成的主体内容部分。
+
+自然，先阅读cgen.h，它包含三个类，首先是CgenClassTable和CgenNode：
+
+首先是CgenNode：
+
+```cpp
+class CgenNode : public class__class {
+private: 
+   CgenNodeP parentnd;                        // Parent of class
+   List<CgenNode> *children;                  // Children of class
+   Basicness basic_status;                    // `Basic' if class is basic
+                                              // `NotBasic' otherwise
+
+public:
+   CgenNode(Class_ c,
+            Basicness bstatus,
+            CgenClassTableP class_table);
+
+   void add_child(CgenNodeP child);
+   List<CgenNode> *get_children() { return children; }
+   void set_parentnd(CgenNodeP p);
+   CgenNodeP get_parentnd() { return parentnd; }
+   int basic() { return (basic_status == Basic); }
+};
+```
+
+- 继承自class__class
+
+#### 私有成员变量
+
+- `parentnd`: 父节点。
+- `children`: 子节点列表。
+- `basic_status`: 表示类是否是基本类型。
+
+#### 公有成员函数
+
+- 构造函数：接受一个类、基本状态和一个类表指针。
+- `add_child()`: 添加子节点。
+- `get_children()` 和 `get_parentnd()`: 获取子节点列表和父节点。
+- `basic()`: 判断是否是基本类型。
+
+> 为什么这里一定需要设置一个basic_status来明确指出当前是否是基本类？
+
+
+
+
+
+
+
+```cpp
+class CgenClassTable;
+typedef CgenClassTable *CgenClassTableP;
+
+class CgenNode;
+typedef CgenNode *CgenNodeP;
+
+class CgenClassTable : public SymbolTable<Symbol,CgenNode> {
+private:
+   List<CgenNode> *nds;
+   ostream& str;
+   int stringclasstag;
+   int intclasstag;
+   int boolclasstag;
+
+
+// The following methods emit code for
+// constants and global declarations.
+
+   void code_global_data();
+   void code_global_text();
+   void code_bools(int);
+   void code_select_gc();
+   void code_constants();
+
+// The following creates an inheritance graph from
+// a list of classes.  The graph is implemented as
+// a tree of `CgenNode', and class names are placed
+// in the base class symbol table.
+
+   void install_basic_classes();
+   void install_class(CgenNodeP nd);
+   void install_classes(Classes cs);
+   void build_inheritance_tree();
+   void set_relations(CgenNodeP nd);
+public:
+   CgenClassTable(Classes, ostream& str);
+   void code();
+   CgenNodeP root();
+};
+```
+
+- 继承了SymbolTable，因此也即继承了环境变量的核心机制
+
+
+
+
+
+#### 还是按照执行顺序分析
+
+写到这里，我发现这种分析顺序不太对，应该按照程序执行的顺序进行分析，类中的方法大致了解，遇到时再分析实际作用。
+
+下面回到正轨，首先观察构造函数：
+
+```cpp
+CgenClassTable::CgenClassTable(Classes classes, ostream& s) : nds(NULL) , str(s)
+{
+   stringclasstag = 0 /* Change to your String class tag here */;
+   intclasstag =    0 /* Change to your Int class tag here */;
+   boolclasstag =   0 /* Change to your Bool class tag here */;
+
+   enterscope();
+   if (cgen_debug) cout << "Building CgenClassTable" << endl;
+   install_basic_classes();
+   install_classes(classes);
+   build_inheritance_tree();
+
+   code();
+   exitscope();
+}
+```
+
+首先，调用install_basic_classes函数来初始化基本类型，这里主要包括两个过程：
+
+- 首先直接使用addid添加3个特殊类
+- 然后使用install_class方法添加其他的基本类
+
+这两种添加方式的核心区别在哪？对比代码呗，不难发现，install_class就是在addid的基础之上，还通过`nds = new List<CgenNode>(nd,nds);`把当前新增的类的node添加到了CgenClassTable中。
+
+然后，调用install_classes把当前的program结构体的所有其他class添加进去。需要注意的是，这些都是在同一个scope中完成的。
+
+再然后，调用build_inheritance_tree：遍历CgenClassTable中的所有node，CgenNode在class__class的基础上增加了父子信息，如下图。（install_classs没有初始化这里的parentnd和children。）build_inheritance_tree的作用就是初始化这些信息。
+
+```cpp
+class CgenNode : public class__class {
+private: 
+   CgenNodeP parentnd;                        // Parent of class
+   List<CgenNode> *children;                  // Children of class
+   Basicness basic_status;                    // `Basic' if class is basic
+      	                                      // `NotBasic' otherwise
+```
+
+
+
+好好好，下面就到了激动人心的code generation环节了：
+
+```cpp
+void CgenClassTable::code()
+{
+  if (cgen_debug) cout << "coding global data" << endl;
+  code_global_data();
+
+  if (cgen_debug) cout << "choosing gc" << endl;
+  code_select_gc();
+
+  if (cgen_debug) cout << "coding constants" << endl;
+  code_constants();
+
+//                 Add your code to emit
+//                   - prototype objects
+//                   - class_nameTab
+//                   - dispatch tables
+//
+
+  if (cgen_debug) cout << "coding global text" << endl;
+  code_global_text();
+
+//                 Add your code to emit
+//                   - object initializer
+//                   - the class methods
+//                   - etc...
+
+}
+```
+
+首先是全局变量的生成：
+
+
+
+然后分别结合实例对它的功能函数按顺序进行分析，
+
+首先是数据段的生成:
+
+```cpp
+//***************************************************
+//
+//  Emit code to start the .data segment and to
+//  declare the global names.
+//
+//***************************************************
+
+void CgenClassTable::code_global_data()
+{
+  Symbol main    = idtable.lookup_string(MAINNAME);
+  Symbol string  = idtable.lookup_string(STRINGNAME);
+  Symbol integer = idtable.lookup_string(INTNAME);
+  Symbol boolc   = idtable.lookup_string(BOOLNAME);
+
+  str << "\t.data\n" << ALIGN;
+  //
+  // The following global names must be defined first.
+  //
+  str << GLOBAL << CLASSNAMETAB << endl;
+  str << GLOBAL; emit_protobj_ref(main,str);    str << endl;
+  str << GLOBAL; emit_protobj_ref(integer,str); str << endl;
+  str << GLOBAL; emit_protobj_ref(string,str);  str << endl;
+  str << GLOBAL; falsebool.code_ref(str);  str << endl;
+  str << GLOBAL; truebool.code_ref(str);   str << endl;
+  str << GLOBAL << INTTAG << endl;
+  str << GLOBAL << BOOLTAG << endl;
+  str << GLOBAL << STRINGTAG << endl;
+
+  //
+  // We also need to know the tag of the Int, String, and Bool classes
+  // during code generation.
+  //
+  str << INTTAG << LABEL
+      << WORD << intclasstag << endl;
+  str << BOOLTAG << LABEL 
+      << WORD << boolclasstag << endl;
+  str << STRINGTAG << LABEL 
+      << WORD << stringclasstag << endl;    
+}
+```
+
+>### 场景
+>
+>假设我们有一个简单的 COOL 程序，其中包含一个字符串、一个整数和一个布尔值。我们需要生成这个程序的全局数据段的汇编代码。
+>
+>### COOL 程序
+>
+>```
+>coolCopy codeclass Main inherits IO {
+>main() : IO {
+>   out_string("Hello, world!");
+>   out_int(42);
+>   if true then out_string("True!") else out_string("False!") fi;
+>};
+>};
+>```
+>
+>### 生成的汇编代码
+>
+>假设 `intclasstag = 1`, `boolclasstag = 2`, `stringclasstag = 3`，生成的汇编代码可能类似于以下内容：
+>
+>```
+>.data
+>.align 2
+>.globl _CLASSNAMETAB
+>.globl _Main_protObj
+>.globl _Int_protObj
+>.globl _String_protObj
+>.globl _Bool_false
+>.globl _Bool_true
+>.globl _INTTAG
+>.globl _BOOLTAG
+>.globl _STRINGTAG
+>_INTTAG:
+>.word 1
+>_BOOLTAG:
+>.word 2
+>_STRINGTAG:
+>.word 3
+>```
+>
+>### 运行时行为
+>
+>- 当程序创建一个整数对象时，它会使用 `intclasstag`（值为 1）来标识这个对象的类型。
+>- 当程序需要执行一个类型检查或方法调用时，它会查看对象的类标签，并使用这个信息来确定对象的类型和方法表的位置。
+>- 类似地，字符串和布尔值对象也会使用 `stringclasstag` 和 `boolclasstag` 来标识它们的类型。
+
+
+
+然后是生成了一些和垃圾收集（Garbage Collection, GC）相关的全局数据。
+
+再然后，是整数常量和字符串常量的生成。这里字符串常量和数字常量的生成
+
+下面就到了本次PA的核心部分了，按照注释要求，我们需要补全prototype objects的全局定义，
+
+在这两个code generation之间还有一个code_text，其运行效果如下：
+
+```assembly
+    .global _HEAP_START
+_HEAP_START:
+    .word   0
+
+    .text
+    .global _Main_init
+    .global _Int_init
+    .global _String_init
+    .global _Bool_init
+    .global _Main_main
+```
+
+需要注意的是：在这个 `code_global_text` 函数中，确实只是声明了一些全局标签（例如 `_Main_main`），但没有给出这些标签的具体地址或者与这些标签关联的具体代码。这是因为在这个阶段，编译器只是在生成这些需要的全局标签，具体的函数代码和地址会在后续的编译阶段中生成和分配。
+
+> 在汇编语言和编译器的上下文中，通常会有几个阶段：
+>
+> ### 1. **声明阶段**
+>
+> - 在这个阶段，编译器会生成全局标签和变量的声明。这就像在 C/C++ 程序中声明一个外部变量或函数一样，此时不需要知道变量的具体值或函数的具体代码。
+>
+> ### 2. **定义阶段**
+>
+> - 在这个阶段，编译器会生成具体的代码和数据。例如，对于一个函数，编译器会生成这个函数的机器代码，并给这个函数分配一个地址。
+>
+> ### 3. **链接阶段**
+>
+> - 在这个阶段，链接器会将各个编译单元（通常是 `.o` 文件）链接在一起，生成一个可执行文件。在这个过程中，链接器会解析所有的外部引用，将引用与具体的地址关联起来。
+>
+> 在你提供的 `code_global_text` 函数中，编译器处于声明阶段。它声明了一些全局标签，这些标签将在后续的阶段中与具体的地址和代码关联起来。所以你看到的现象是正常的。
+>
+> 例如，对于 `_Main_main` 这个全局标签，编译器在后续的编译阶段会生成 `Main.main` 方法的具体机器代码，并将 `_Main_main` 这个标签与这段机器代码的地址关联起来。在链接阶段，链接器会确保所有对 `_Main_main` 的引用都被正确地解析到这个地址。
+
+
+
+
+
+下面对cgen.cc进行改动，并且对改动进行分析。
+
+
+
+
+
+
+
+> 对于cgen.cc的第五处改动，这里我有一个比较大的疑惑在于，在分配与bool相关的函数表的地址时，我们使用了DISPTAB_SUFFIX，这和前面的Int的一样，这不会引起冲突吗？
+>
+> ChatGPT
+>
+> 不，这不会引起冲突。在这里，`DISPTAB_SUFFIX` 是一个常量字符串，用来生成分发表的名字。`Bool << DISPTAB_SUFFIX` 和 `Int << DISPTAB_SUFFIX` 会生成不同的分发表名字，因为 `Bool` 和 `Int` 是不同的符号。
+>
+> 在 COOL 编译器的实现中，`operator<<` 通常被重载，用于连接符号和字符串。因此，`Bool << DISPTAB_SUFFIX` 和 `Int << DISPTAB_SUFFIX` 实际上会生成两个不同的字符串，这两个字符串分别表示 `Bool` 和 `Int` 类的分发表。
+>
+> 例如，假设 `DISPTAB_SUFFIX` 的值是 `"_disp"`，那么：
+>
+> - `Bool << DISPTAB_SUFFIX` 会生成 `"Bool_disp"`。
+> - `Int << DISPTAB_SUFFIX` 会生成 `"Int_disp"`。
+>
+> 这两个字符串是不同的，所以不会引起冲突。每个类都有自己的分发表，分发表的名字由类的名字和 `DISPTAB_SUFFIX` 连接而成。在运行时，对象会使用自己类的分发表来动态查找和调用方法。
+
+
+
+
+
+
+
+
+
+
+
+对于第六处改动（超多改动)
+
+​	
+
+不急，一个一个来。首先是code_class_nameTab,它用于生成 COOL 程序中类名的全局表。该全局表主要用于运行时系统，以方便地获取每个类的名字。
+
+```cpp
+
+void CgenClassTable::code_class_nameTab() {
+    str << CLASSNAMETAB << LABEL;
+
+    std::vector<CgenNode*> class_nodes = GetClassNodes();
+    for (CgenNode* class_node : class_nodes) {
+        Symbol class_name = class_node->name;
+        StringEntry* str_entry = stringtable.lookup_string(class_name->get_string());
+
+        str << WORD;
+        str_entry->code_ref(str);
+        str << endl;
+        std::vector<CgenNode*> _children = class_node->GetChildren();
+        for (CgenNode* _child : _children) {
+            str << "# child: " << _child->name << endl;
+        }
+        str << std::endl;
+    }
+}
+```
+
+
+
+> ### 实例解释
+>
+> 假设我们有一个 COOL 程序，其中包含一个字符串常量 `"Hello, world!"`。在编译过程中，这个字符串常量会被添加到字符串常量表中，并被赋予一个唯一的索引，比如 `3`。
+>
+> 在 `code_class_nameTab()` 函数中，如果我们需要引用这个字符串常量，我们会调用 `code_ref()` 方法：
+>
+> ```
+> cppCopy code
+> str_entry->code_ref(str);
+> ```
+>
+> 这会将字符串常量的引用添加到生成的汇编代码中。如果 `STRCONST_PREFIX` 是 `"str_const"`，那么生成的代码会是：
+>
+> ```
+> assemblyCopy code
+> .word str_const3
+> ```
+>
+> 这个 `.word` 指令在 MIPS 汇编语言中用于存储一个 32 位的字。在这个例子中，它存储了字符串常量 `"Hello, world!"` 的地址引用。在运行时，这个地址会被用来快速访问和检索字符串常量。
+>
+> 这里，`_class_nameTab:` 是一个标签，它标记了一段内存的开始，这段内存用于存储类名的地址。
+
+
+
+结合实例我们可以看出，Entry结构体中的index在实现在汇编代码层面对类名进行快速访问十分关键
+
+
+
+- 然后是dispatch_table的生成，这里直接结合实例进行解释
+
+> ### 实例解释
+>
+> 假设我们有以下的 COOL 类：
+>
+> ```
+> coolCopy codeclass Main inherits IO {
+>     foo() : Int { ... }
+> };
+> 
+> class Person inherits Main {
+>     bar() : Int { ... }
+> };
+> ```
+>
+> 对于这些类，`code_dispatchTabs()` 函数会生成类似以下的 MIPS 汇编代码：
+>
+> ```
+> _Main_dispTab:
+>     .word _IO_foo    ; Inherited from IO
+>     .word _Main_foo  ; Defined in Main
+> 
+> _Person_dispTab:
+>     .word _IO_foo    ; Inherited from IO
+>     .word _Main_foo  ; Inherited from Main
+>     .word _Person_bar; Defined in Person
+> ```
+
+
+
+现在似乎仍然有个问题，_Person_dispTab、_Main_dispTab我声明了吗？呃呃呃仔细看代码行不行，
+
+```
+emit_disptable_ref(_class_node->name, str);
+```
+
+它的作用就是生成相关的声明
+
+
+
+
+
+第七处改动，注意用的是change不是add
+
+```cpp
+ //====================change 7=============这里目前有点不太明确
+    std::map<Symbol, int> class_tags = GetClassTags();
+    stringclasstag = class_tags[Str];
+    intclasstag = class_tags[Int];
+    boolclasstag = class_tags[Bool];
+    //===================change 7==============
+```
+
+
+
+参考答案中，在构造函数中没有执行exitscope，不知道是不是有意为之，目前我加了。先记录一下
+
+![image-20230930200341852](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230930200341852.png)
+
+好好好，原来exit藏在这里，你也是够无聊的
+
+![image-20230930204314437](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20230930204314437.png)
+
+
+
+在构造函数的后面，就是针对各种不同类型的子节点进行code generation的函数。
+
+
+
+-----------------------------分割线，那个cgen.cc的分析先到这--------------------------------------
+
+下面开始对cool-tree.h进行分析，
+
+首先，开幕雷击，对于第一处修改，自定义的Environment是干啥用的。这和PA4里面的那个是同一个东西吗。
+
+
+
+这里还要注意，对于
+
+
+
+
+
+
+
+---------------------------测试----------------------------------------------------------
+
+发现问题：
+
+![image-20231001124407583](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231001124407583.png)
+
+这部分代码的作用是，为程序中的所有类名、常量生成全局声明。
+
+ok，是自己的疏忽大意，在StringEntry::code_def函数的相应位置漏掉了对函数表地址的填写。
+
+但是也正好借此机会体会到了其中的巧妙之处，以整数常量为例，这里巧妙之处是，其地址是Int_dispTab，Int_dispTab是在实际运行过程中系统根据当前内存状况自动分配的，妙！！
+
+![image-20231001131720470](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231001131720470.png)
+
+
+
+
+
+下面新的问题来了，下面是当前生成的主函数的汇编代码。可以看到，这里是准备好了helloworld字符串的，但是似乎完全没有涉及对out_string的调用，所以我在屏幕上没有看到任何输出
+
+```assembly
+
+Main_init:
+	# push fp, s0, ra
+	addiu	$sp $sp -12
+	sw	$fp 12($sp)
+	sw	$s0 8($sp)
+	sw	$ra 4($sp)
+
+	# fp now points to the return addr in stack
+	addiu	$fp $sp 4
+
+	# SELF = a0
+	move	$s0 $a0
+
+	# init parent
+	jal	IO_init
+
+	# ret = SELF
+	move	$a0 $s0
+
+	# pop fp, s0, ra
+	lw	$fp 12($sp)
+	lw	$s0 8($sp)
+	lw	$ra 4($sp)
+	addiu	$sp $sp 12
+
+	# return
+	jr	$ra	
+
+Main.main:
+	# push fp, s0, ra
+	addiu	$sp $sp -12
+	sw	$fp 12($sp)
+	sw	$s0 8($sp)
+	sw	$ra 4($sp)
+
+	# fp now points to the return addr in stack
+	addiu	$fp $sp 4
+
+	# SELF = a0
+	move	$s0 $a0
+
+	# evaluating expression and put it to ACC
+	# Dispatch. First eval and save the params.
+	la	$a0 str_const1
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	# eval the obj in dispatch.
+	# Object:
+	# It is self.
+	move	$a0 $s0
+	
+
+	# if obj = void: abort
+	bne	$a0 $zero label0
+        la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label0:
+
+```
+
+啊好好好，看来问题确实是我在函数调用方面存在疏忽。下面是用网上的参考答案替换了我的cgen.cc文件之后得到的结果：
+
+```assembly
+Main_init:
+	# push fp, s0, ra
+	addiu	$sp $sp -12
+	sw	$fp 12($sp)
+	sw	$s0 8($sp)
+	sw	$ra 4($sp)
+
+	# fp now points to the return addr in stack
+	addiu	$fp $sp 4
+
+	# SELF = a0
+	move	$s0 $a0
+
+	# init parent
+	jal	IO_init
+
+	# ret = SELF
+	move	$a0 $s0
+
+	# pop fp, s0, ra
+	lw	$fp 12($sp)
+	lw	$s0 8($sp)
+	lw	$ra 4($sp)
+	addiu	$sp $sp 12
+
+	# return
+	jr	$ra	
+
+Main.main:
+	# push fp, s0, ra
+	addiu	$sp $sp -12
+	sw	$fp 12($sp)
+	sw	$s0 8($sp)
+	sw	$ra 4($sp)
+
+	# fp now points to the return addr in stack
+	addiu	$fp $sp 4
+
+	# SELF = a0
+	move	$s0 $a0
+
+	# evaluating expression and put it to ACC
+	# Dispatch. First eval and save the params.
+	la	$a0 str_const1
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	# eval the obj in dispatch.
+	# Object:
+	# It is self.
+	move	$a0 $s0
+
+	# if obj = void: abort
+	bne	$a0 $zero label0
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label0:
+	# Now we locate the method in the dispatch table.
+	# t1 = self.dispTab
+	lw	$t1 8($a0)
+
+	# t1 = dispTab[offset]
+	lw	$t1 12($t1)
+
+	# jumpto out_string
+	jalr		$t1
+
+
+	# pop fp, s0, ra
+	lw	$fp 12($sp)
+	lw	$s0 8($sp)
+	lw	$ra 4($sp)
+	addiu	$sp $sp 12
+
+	# Pop arguments
+	addiu	$sp $sp 0
+
+	# return
+	jr	$ra	
+
+# end of generated code
+```
+
+呃呃，那么这一对比，问题就很明显了：原来的版本出于某种原因没有生成out_string的相关代码。
+
+
+
+另，即使是替换了网上的这个版本的cgen.cc，运行评分脚本的结果还是0分，这个问题目前不是很清楚原因。
+
+
+
+
+
+
+
+![image-20231001142907491](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231001142907491.png)
+
+
+
+
+
+
+
+![image-20231001193723360](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231001193723360.png)
+
+从测试结果来看，似乎是在返回值上出现了问题:都返回了32512？？？还是-1？？
+
+
+
+首先把所有code generation的相关代码看明白。然后再考虑为什么会出现这样的问题。个人认为，等code generation的逻辑弄明白之后应该就可以解决这个问题了。
+
+首先给出主体的code函数：
+
+不是哥们，你这才学了一个多小时吧，好好好，坐不住了是吧，给我老老实实分析code generation的函数去。那么，如何让一个人感觉到学习是一件比较舒服的事儿呢，那必然是像磊哥学习，劳逸结合了。啊其实更重要的是一种陪伴吧doge
+
+绷不住，完全绷不住。
+
+```cpp
+
+void CgenClassTable::code() {
+    if (cgen_debug) {
+        cout << "coding global data" << endl;
+    }
+    code_global_data();
+
+    if (cgen_debug) {
+        cout << "choosing gc" << endl;
+    }
+    code_select_gc();
+
+    if (cgen_debug) {
+        cout << "coding constants" << endl;
+    }
+    code_constants();
+
+    if (cgen_debug) {
+        cout << "coding name table" << endl;
+    }
+    code_class_nameTab();
+
+    if (cgen_debug) {
+        cout << "coding object table" << endl;
+    }
+    code_class_objTab();
+
+    if (cgen_debug) {
+        cout << "coding dispatch tables" << endl;
+    }
+    code_dispatchTabs();
+    
+    if (cgen_debug) {
+        cout << "coding prototype objects" << endl;
+    }
+    code_protObjs();
+
+    if (cgen_debug) {
+        cout << "coding global text" << endl;
+    }
+    code_global_text();
+
+    if (cgen_debug) {
+        cout << "coding object initializers" << endl;
+    }
+    code_class_inits();
+
+    if (cgen_debug) {
+        cout << "coding class methods" << endl;
+    }
+    code_class_methods();
+    //                   - the class methods
+    //                   - etc...
+}
+```
+
+
+
+记住，你的最终目的不是得到那个63/63，而是要把整个code generation以至于整个编译的过程搞明白。
+
+
+
+- jal vs jr 
+
+> 请结合实例解释jal指令和jr指令的区别
+>
+> 
+>
+> ChatGPT
+>
+> 
+>
+> `jal` 和 `jr` 是 MIPS 汇编语言中的跳转指令。下面我将通过具体实例来解释它们之间的区别。
+>
+> ### 1. `jal` (Jump And Link) 指令
+>
+> `jal` 指令用于跳转到指定的地址并执行函数或子程序。在跳转之前，==它将当前指令的下一个地址存储到 `$ra` (返回地址) 寄存器中==，以便子程序执行完后能返回到正确的位置继续执行。
+>
+> 示例：
+>
+> ```
+> assemblyCopy codemain:
+>     # ... 一些操作
+>     jal subroutine   # 跳转到 'subroutine' 并保存返回地址到 $ra
+>     # ... 继续执行操作
+> 
+> subroutine:
+>     # ... 子程序操作
+>     jr $ra           # 返回到调用该子程序的位置
+> ```
+>
+> 在这个例子中，`jal subroutine` 会跳转到标签 `subroutine` 指向的地址，并将跳转指令下一条指令的地址存储到 `$ra` 寄存器。子程序 `subroutine` 执行完后，`jr $ra` 用于跳回到 `jal` 指令后的下一条指令继续执行。
+>
+> ### 2. `jr` (Jump Register) 指令
+>
+> `jr` 指令用于跳转到存储在某个寄存器中的地址。它常用于函数或子程序的返回操作。
+>
+> 上面的示例中已经包含了 `jr` 指令的用法。`jr $ra` 从 `$ra` 寄存器读取返回地址，并跳转到该地址，继续执行程序。
+>
+> ### 通过实例加深理解
+>
+> 假设我们有一个程序，该程序在主函数 `main` 中调用一个名为 `printHello` 的子程序。
+>
+> ```
+> assemblyCopy codemain:
+>     # 执行一些初始化操作
+>     # ...
+> 
+>     jal printHello   # 跳转到 printHello 子程序
+>                      # 并将返回地址存储在 $ra 寄存器中
+> 
+>     # 当 printHello 子程序执行完毕并返回后，
+>     # 继续执行其他操作
+>     # ...
+> 
+> printHello:
+>     # 打印 "Hello, world!"
+>     # ...
+> 
+>     jr $ra   # 从 $ra 寄存器读取返回地址
+>              # 跳回到调用该子程序的位置继续执行
+> ```
+>
+> 在这个示例中：
+>
+> - `jal printHello` 指令告诉 CPU 跳转到 `printHello` 子程序的地址并开始执行，同时将 `jal` 指令后的地址存储到 `$ra` 寄存器以便于后续返回。
+> - `printHello` 子程序执行完毕后，`jr $ra` 指令告诉 CPU 跳回到 `$ra` 寄存器中存储的地址（即 `jal` 指令后的地址），继续执行主函数中的其他指令。
+
+
+
+###### 函数究竟是如何调用的呢？
+
+下面结合一个具体的例子加以解释：（来自grade脚本中的assignment-val.cl文件）
+
+```
+class Main inherits IO {
+  f(x : Int, y : Int) : Object { {
+    out_string("x: ");
+    out_int(x);
+    out_string("\ny: ");
+    out_int(y);
+    out_string("\n");
+  } };
+  main() : Object {
+    let x : Int <- 2 in {
+      f(x <- 3, x <- 4);
+      out_int(x);
+    }
+  };
+};
+```
+
+
+
+完整的汇编代码可以去找grade文件夹，这里给出核心代码（也即汇编中的代码段）.
+
+这里我们可以发现，在Main.f中，我们始终在a0寄存器中维护着一个指向当前的对象的指针，（这里就体现出s0寄存器的重要性了）
+
+目前看来，对于a0的维护主要涉及两个动作：
+
+- 在函数体刚开始执行时，把当前的a0寄存器的值存到s0寄存器中
+- 在将要发生跳转/函数执行结束时，恢复
+
+这样的好处也很明显：同一个对象调用了多个方法，那么这些方法的self指针会具有一致性，这种一致性的意义不只是维护一个self指针那么简单：==它是该对象的所有方法访问对象内的属性的唯一途径==
+
+比如，这个例子中，我们在label0的最开始可以通过如下语句快速地访问到Main对象的函数指针表：(知道为什么要+8吗)
+
+```
+lw	$t1 8($a0)
+```
+
+
+
+
+
+```
+Main.f:
+	# push fp, s0, ra
+	addiu	$sp $sp -12
+	sw	$fp 12($sp)
+	sw	$s0 8($sp)
+	sw	$ra 4($sp)
+
+	# fp now points to the return addr in stack
+	addiu	$fp $sp 4
+
+	# SELF = a0
+	move	$s0 $a0
+
+	# evaluating expression and put it to ACC
+	# Dispatch. First eval and save the params.
+	la	$a0 str_const1
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	# eval the obj in dispatch.
+	# Object:
+	# It is self.
+	move	$a0 $s0
+
+	# if obj = void: abort
+	bne	$a0 $zero label0
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label0:
+	# Now we locate the method in the dispatch table.
+	# t1 = self.dispTab
+	lw	$t1 8($a0)
+
+	# t1 = dispTab[offset]
+	lw	$t1 12($t1)
+
+	# jumpto out_string
+	jalr		$t1
+
+	# Dispatch. First eval and save the params.
+	# Object:
+	# It is a param.
+	lw	$a0 16($fp)
+
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	# eval the obj in dispatch.
+	# Object:
+	# It is self.
+	move	$a0 $s0
+
+	# if obj = void: abort
+	bne	$a0 $zero label1
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+```
+
+
+
+
+
+--------------------目前对code generation有了更多的理解，但是还是无法解释grading报错原因------------------------------------
+
+现在有另一个疑问，这些不同lable的代码都会有着细微的区别，这些区别是如何实现的呢？
+
+你产生这个疑问只能说你对于Abstraction的理解还不够好：所有的method的结构都是统一的，其code generation的结构当然也是统一的，至于上面提到的”细微的区别“，==不是由method的code函数造成的，而是method的expr的code函数造成的==。
+
+
+
+---------------------------------
+
+
+
+
+
+
+
+评分脚本由于一些路径问题很容易出现0分情况，仔细比对grading目录下的test-output，逐一解决即可。我这里主要参考了一位大佬的解决办法：
+
+![image-20231003151847826](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231003151847826.png)
+
+![image-20231003151634095](C:\Users\OrangeO_o\AppData\Roaming\Typora\typora-user-images\image-20231003151634095.png)
+
